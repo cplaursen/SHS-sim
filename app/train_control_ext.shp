@@ -1,0 +1,30 @@
+Consts {
+b = -0.4;
+A = 2;
+}
+//
+////Enum { accel, brake }
+//
+Vars {
+q = accel;
+z=0;
+v=0;
+a=A; 
+}
+
+Settings {
+timestep = 0.01;
+T = 10;
+num_runs = 100;
+}
+
+SHP {
+
+( 
+    (?q = accel; {z' = v, v' = a} dt + {a' = 0.1} dW & t < 0)
+ ++ (?q = accel /\ z >= s; a := -b; q := brake; ?v >= 0)
+ ++ (?q = brake; {z' = v, v' = a} dt & v >= 0)
+ ++ (?q = brake /\ v <= 1; a := a + 5; q := accel)
+)*
+
+}
