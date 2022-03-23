@@ -1,4 +1,4 @@
-# stochastic-hybrid-sim
+# SHS-sim
 Simulator for stochastic hybrid programs
 
 The constructs are:
