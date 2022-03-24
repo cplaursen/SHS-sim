@@ -4,7 +4,7 @@ import Euler_Maruyama
 import Data.Vector (Vector, singleton, (!))
 import qualified Data.Vector as V
 import Linear.Vector
-import System.Random.MWC (create, GenIO)
+import System.Random.MWC (createSystemRandom, GenIO)
 import System.Random.MWC.Distributions
 
 import Graphics.Matplotlib
@@ -49,9 +49,9 @@ plot_sde = do
 interpret :: IO ()
 interpret = do
     c <- getContents
-    g <- create
+    g <- createSystemRandom
     let prog = parseSHP $ alexScanTokens c
-    print =<< runRWST (runSHP prog) (Config 0 0.01 g) empty
+    print =<< runRWST (runSHP prog) (Config 0 0.01 g) (State empty V.empty empty)
 
 {-
 parse_print :: IO ()

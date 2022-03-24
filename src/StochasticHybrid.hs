@@ -1,14 +1,16 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, TemplateHaskell #-}
 module StochasticHybrid where
 
-import Data.Vector.Unboxed (Vector)
+import Data.Vector (Vector)
 
 import Data.HashMap.Strict (HashMap, (!), (!?), insert)
 
 import Control.Monad.Writer (runWriter)
 
 import Control.Monad.Primitive (PrimState)
-import Control.Monad.RWS (RWST, ask, get, tell, put)
+import Control.Monad.RWS (RWST, ask, get, tell, put, modify)
+
+import Lens.Micro.Platform
 
 import SHPParser
 import SHPLexer
@@ -20,11 +22,18 @@ import Euler_Maruyama
 
 type Vars = HashMap String Double
 
-type Execution = RWST Config [Vector Double] Vars IO ()
+data State = State
+    { _discrete :: Vars
+    , _continuous :: Vector Double
+    , _indices :: HashMap String Int
+    } deriving (Show, Eq)
+
+makeLenses ''State
+
+type Execution = RWST Config [Vector Double] State IO ()
 
 {- TODO
     - Implement pre-SHP definition blocks
-    - Extract vectors of continuous variables from the state
     - Implement SHS evolution
 -}
 
@@ -59,24 +68,21 @@ replaceVarExpr consts e =
 
 replaceVarSHP = mapSHPExpr . replaceVarExpr 
 
-evalExpr :: Vars -> Expr -> Double
-evalExpr s exp =
+evalExpr :: Expr -> Vars -> Double
+evalExpr exp s =
     case exp of
       Real x -> x
       Var v -> s ! v
-      Bop op a b -> evalExpr s a `op` evalExpr s b
+      Bop op a b -> evalExpr a s `op` evalExpr b s
 
-evalPred :: Vars -> Pred -> Bool
-evalPred s pred =
+evalPred :: Pred -> Vars -> Bool
+evalPred pred s =
     case pred of
-        Compare op a b -> evalExpr s a `op` evalExpr s b
-        And p q -> evalPred s p && evalPred s q
-        Or p q -> evalPred s p || evalPred s q
-        Not p -> not $ evalPred s p
+        Compare op a b -> evalExpr a s `op` evalExpr b s
+        And p q -> evalPred p s && evalPred q s
+        Or p q -> evalPred p s || evalPred q s
+        Not p -> not $ evalPred p s
         Bool b -> b
-
--- diffToFlow :: [Diff] -> State -> Flow
--- diffToFlow diff s = undefined
 
 runSHP :: SHP -> Execution
 runSHP shp =
@@ -88,25 +94,29 @@ runSHP shp =
           tell trace
           put newState-}
       Assn v exp -> do
-          s <- get 
-          put (insert v (evalExpr s exp) s)
+          disc <- use discrete
+          (discrete . at v) ?= (evalExpr exp (state ^. discrete))
       RandAssn v lo hi -> do
-          opts <- ask
-          state <- get
-          val <- MWC.uniformR ((evalExpr state hi), (evalExpr state lo)) (gen opts)
-          put $ insert v val state
+          g <- gets gen
+          disc <- use discrete
+          val <- MWC.uniformR ((evalExpr hi disc), (evalExpr lo disc)) g
+          discrete . at v ?= val
       Choice prob n m -> do
-          opts <- ask
-          val <- MWC.uniformR (0,1) (gen opts)
-          if val < prob then runSHP n else runSHP m
+          g <- gets gen
+          val <- MWC.uniformR (0,1) g
+          if val < prob
+             then runSHP n
+             else runSHP m
       Composition n m -> runSHP n >> runSHP m
       While p m -> do
-          state <- get
-          if evalPred state p
+          disc <- use discrete
+          if evalPred p disc
              then runSHP m >> runSHP shp
              else return ()
       Abort -> error "abort"
       Skip -> return ()
-      Cond pred n m -> do
-          state <- get
-          if (evalPred state pred) then runSHP n else runSHP m
+      Cond p n m -> do
+          disc <- gets discrete
+          if evalPred p disc
+             then runSHP n
+             else runSHP m

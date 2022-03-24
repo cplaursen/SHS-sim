@@ -46,6 +46,7 @@ library
     , base >=4.7 && <5
     , linear
     , matplotlib
+    , microlens-platform
     , mtl
     , mwc-random
     , primitive
@@ -65,6 +66,7 @@ executable stochastic-hybrid-sim-exe
     , base >=4.7 && <5
     , linear
     , matplotlib
+    , microlens-platform
     , mtl
     , mwc-random
     , primitive
@@ -86,6 +88,7 @@ test-suite stochastic-hybrid-sim-test
     , base >=4.7 && <5
     , linear
     , matplotlib
+    , microlens-platform
     , mtl
     , mwc-random
     , primitive

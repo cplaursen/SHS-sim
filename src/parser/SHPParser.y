@@ -111,6 +111,7 @@ Pred : bool { Bool $1 }
      | "(" Pred ")"   { $2 }
 
 { 
+
 parseError :: [Token] -> a
 parseError _ = error "Parse error"
 
