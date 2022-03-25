@@ -16,11 +16,6 @@ import System.Random.MWC.Distributions (normal)
 type Flow = Vector Double -> Double -> Vector Double 
 type Noise = Vector Double -> Double -> Vector (Vector Double)
 
-data Config = Config
-    { maxTime :: Double
-    , dt :: Double
-    , gen :: GenIO
-    }
 euler :: Flow -- ODE
       -> Double -- Target time
       -> Double -- Step size
@@ -47,12 +42,14 @@ euler_maruyama :: Flow
                -> Vector Double -- current state
                -> Double -- current time
                -> (Vector Double -> Double -> Bool) -- Boundary
-               -> Config
+               -> Double -- timestep 
+               -> GenIO
                -> WriterT [(Double, Vector Double)] IO (Double, Vector Double)
-euler_maruyama f sigma y t boundary cfg@Config{maxTime, dt, gen}
-  | t >= maxTime || not (boundary y t) = return (t,y)
+euler_maruyama f sigma y t boundary dt gen
+  | not (boundary y t) = return (t,y)
   | otherwise = do
       w_n <- lift $ dWiener_n dt (length y) gen
       let curr_step = y ^+^ ((dt *^ f y t) ^+^ (sigma y t !* w_n))
       tell [(t + dt, curr_step)]
-      euler_maruyama f sigma curr_step (t + dt) boundary cfg
+      lift $ print t
+      euler_maruyama f sigma curr_step (t + dt) boundary dt gen

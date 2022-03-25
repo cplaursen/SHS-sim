@@ -2,20 +2,22 @@ Consts {
 b = -0.4;
 A = 2;
 }
+
 //
 ////Enum { accel, brake }
 //
+
 Vars {
-q = accel;
-z=0;
-v=0;
-a=A; 
+    q = accel;
+    z=0;
+    v=0;
+    a=A; 
 }
 
 Settings {
-timestep = 0.01;
-T = 10;
-num_runs = 100;
+    timestep = 0.01;
+    T = 10;
+    num_runs = 100;
 }
 
 SHP {

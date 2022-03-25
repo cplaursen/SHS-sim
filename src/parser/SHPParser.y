@@ -129,6 +129,7 @@ data Diff = Diff String Expr
 
 data Expr = Real Double
           | Var String
+          | Cont Int -- Continuous variable - not used in parsing
           | Const String -- Enumeration
           | Bop (Double -> Double -> Double) Expr Expr -- Binary Operation
 

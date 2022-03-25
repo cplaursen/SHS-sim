@@ -13,6 +13,7 @@ import StochasticHybrid
 import SHPParser
 import SHPLexer
 import Data.HashMap.Strict (empty)
+import qualified Data.HashMap.Strict as M
 import Control.Monad.RWS (runRWST)
 import Control.Monad.Writer.Strict (runWriter, lift)
 
@@ -51,7 +52,7 @@ interpret = do
     c <- getContents
     g <- createSystemRandom
     let prog = parseSHP $ alexScanTokens c
-    print =<< runRWST (runSHP prog) (Config 0 0.01 g) (State empty V.empty empty)
+    print =<< runRWST (runSHP prog) (Config 200 0.01 g (M.fromList [("x", 0)])) (State empty (singleton 0) 0)
 
 {-
 parse_print :: IO ()
