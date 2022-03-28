@@ -15,12 +15,14 @@ import Lens.Micro.Platform
 
 import SHPParser
 import SHPLexer
+import Types
 
 import qualified System.Random.MWC as MWC
 import System.Random.MWC.Distributions (standard)
 
 import Euler_Maruyama
 
+    {-
 type Vars = HashMap String Double
 
 data Config = Config
@@ -39,6 +41,7 @@ data State = State
 makeLenses ''State
 
 type Execution = RWST Config [Vector Double] State IO ()
+-}
 
 {- TODO
     - Implement definition blocks for continuous variables, constants and enumerations

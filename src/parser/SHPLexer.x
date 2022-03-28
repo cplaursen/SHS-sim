@@ -1,5 +1,7 @@
 {
 module SHPLexer where
+
+import Types
 }
 
 %wrapper "basic"
@@ -48,40 +50,4 @@ tokens :-
     @id             { \s -> TokenIdent s }
 {
 
-data Token = TokenIdent String
-           | TokenLParen
-           | TokenRParen 
-           | TokenReal Double
-           | TokenBool Bool
-           | TokenDW     
-           | TokenDT     
-           | TokenAbort  
-           | TokenSkip
-           | TokenIf 
-           | TokenThen 
-           | TokenElse  
-           | TokenWhile
-           | TokenSHP
-           | TokenPrime
-           | TokenComma
-           | TokenLCurl  
-           | TokenRCurl  
-           | TokenSemi  
-           | TokenAmpersand
-           | TokenAssign  
-           | TokenStar  
-           | TokenUnion 
-           | TokenQuestion 
-           | TokenOr
-           | TokenAnd
-           | TokenNot
-           | TokenLEQ
-           | TokenGEQ
-           | TokenLT
-           | TokenGT
-           | TokenEq
-           | TokenPlus
-           | TokenMinus
-           | TokenDiv
-           deriving (Eq, Show)
 }

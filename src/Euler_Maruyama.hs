@@ -13,8 +13,7 @@ import Control.Monad.Primitive (PrimMonad, PrimState)
 import System.Random.MWC (Gen, GenIO)
 import System.Random.MWC.Distributions (normal)
 
-type Flow = Vector Double -> Double -> Vector Double 
-type Noise = Vector Double -> Double -> Vector (Vector Double)
+import Types
 
 euler :: Flow -- ODE
       -> Double -- Target time

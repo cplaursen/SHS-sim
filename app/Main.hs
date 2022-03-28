@@ -12,6 +12,7 @@ import Graphics.Matplotlib
 import StochasticHybrid
 import SHPParser
 import SHPLexer
+import Types
 import Data.HashMap.Strict (empty)
 import qualified Data.HashMap.Strict as M
 import Control.Monad.RWS (runRWST)

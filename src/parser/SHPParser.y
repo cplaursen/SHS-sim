@@ -1,6 +1,7 @@
 {
 module SHPParser where
 import SHPLexer
+import Types
 }
 
 %name parseSHP SHP
@@ -114,33 +115,4 @@ Pred : bool { Bool $1 }
 
 parseError :: [Token] -> a
 parseError _ = error "Parse error"
-
-data SHP = Assn String Expr
-      | RandAssn String Expr Expr -- Uniform distribution [fst..snd]
-      | Choice Double SHP SHP
-      | Composition SHP SHP
-      | While Pred SHP
-      | Abort -- Replaces test
-      | Skip
-      | Cond Pred SHP SHP
-      | SDE [Diff] [Diff] Pred
-   
-data Diff = Diff String Expr
-
-data Expr = Real Double
-          | Var String
-          | Cont Int -- Continuous variable - not used in parsing
-          | Const String -- Enumeration
-          | Bop (Double -> Double -> Double) Expr Expr -- Binary Operation
-
-data Pred = Compare (Double -> Double -> Bool) Expr Expr
-          | And Pred Pred
-          | Or Pred Pred
-          | Not Pred
-          | Bool Bool
-
-data Block = SHPBlock SHP | DefBlock String [Definition]
-
-data Definition = Definition String Expr
-
 }
