@@ -1,7 +1,7 @@
 all: SHP
 
 SHPLexer.hs : SHPLexer.x
-	alex SHPParser.x
+	alex SHPLexer.x
 
 SHPParser.hs : SHPParser.y
 	happy SHPParser.y

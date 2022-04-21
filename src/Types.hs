@@ -3,9 +3,10 @@ module Types where
 
 import Data.HashMap.Strict (HashMap)
 import Data.Vector (Vector)
-import System.Random.MWC (GenIO)
+import System.Random.MWC (GenST)
 import Lens.Micro.Platform
 import Control.Monad.RWS (RWST)
+import Control.Monad.ST (ST)
 
 -- Lexing
 data Token = TokenIdent String
@@ -43,7 +44,7 @@ data Token = TokenIdent String
            | TokenPlus
            | TokenMinus
            | TokenDiv
-
+           deriving (Show, Eq)
 
 -- Parsing
 
@@ -56,24 +57,30 @@ data SHP = Assn String Expr
       | Skip
       | Cond Pred SHP SHP
       | SDE [Diff] [Diff] Pred
+      deriving (Show, Eq)
    
 data Diff = Diff String Expr
+    deriving (Show, Eq)
 
 data Expr = Real Double
           | Var String
           | Cont Int -- Continuous variable - not used in parsing
           | Const String -- Enumeration
-          | Bop (Double -> Double -> Double) Expr Expr -- Binary Operation
+          | Bop String Expr Expr -- Binary Operation
+          deriving (Show, Eq)
 
-data Pred = Compare (Double -> Double -> Bool) Expr Expr
+data Pred = Compare String Expr Expr
           | And Pred Pred
           | Or Pred Pred
           | Not Pred
           | Bool Bool
+          deriving (Show, Eq)
 
 data Block = SHPBlock SHP | DefBlock String [Definition]
+    deriving (Show, Eq)
 
 data Definition = Definition String Expr
+    deriving (Show, Eq)
 
 -- SHP
 type Flow = Vector Double -> Double -> Vector Double 
@@ -81,10 +88,10 @@ type Noise = Vector Double -> Double -> Vector (Vector Double)
 
 type Vars = HashMap String Double
 
-data Config = Config
+data Config s = Config
     { maxTime :: Double
     , dt :: Double
-    , gen :: GenIO
+    , gen :: GenST s
     , contIx :: HashMap String Int
     }
 
@@ -96,5 +103,5 @@ data State = State
 
 makeLenses ''State
 
-type Execution = RWST Config [Vector Double] State IO ()
+type Execution s = RWST (Config s) [Vector Double] State (ST s) ()
 

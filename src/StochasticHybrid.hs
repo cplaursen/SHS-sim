@@ -6,7 +6,7 @@ import qualified Data.Vector as V
 import Data.HashMap.Strict (HashMap, (!), (!?))
 import Data.List (sortBy)
 
-import Control.Monad.Writer.Strict (runWriterT)
+import Control.Monad.Writer.Lazy (runWriterT)
 
 import Control.Monad.Primitive (PrimState)
 import Control.Monad.RWS (RWST, ask, get, asks, tell, put, lift)
@@ -98,13 +98,21 @@ diffsToVec indices vectorLength diffs =
                                         else Real 0 : makeList (n+1) lst
      in V.fromList $ makeList 0 sortedPairs
 
+evalOp :: String -> (Double -> Double -> Double)
+evalOp s = case s of
+             "+" -> (+)
+             "-" -> (-)
+             "*" -> (*)
+             "/" -> (/)
+             _   -> error ("Undefined binary operator: " ++ s)
+
 -- Discrete variables only - might allow continuous variables in the future
 evalExpr :: Expr -> Vars -> Double
 evalExpr exp s =
     case exp of
       Real x -> x
       Var v -> s ! v
-      Bop op a b -> evalExpr a s `op` evalExpr b s
+      Bop op a b -> (evalOp op) (evalExpr a s) (evalExpr b s)
       Cont _ -> error "Continuous variables are not allowed in discrete expressions"
 
 -- Continuous variables only - use replaceVarExpr on discrete ones
@@ -112,14 +120,23 @@ evalContExpr :: Expr -> Vector Double -> Double
 evalContExpr exp vec =
     case exp of
       Real x -> x
-      Bop op a b -> evalContExpr a vec `op` evalContExpr b vec
+      Bop op a b -> (evalOp op) (evalContExpr a vec) (evalContExpr b vec)
       Cont ix -> vec V.! ix
       Var v -> error "Discrete variables should be replaced prior to using evalContExpr"
+
+evalComp :: String -> (Double -> Double -> Bool)
+evalComp s = case s of
+               "==" -> (==)
+               "<"  -> (<)
+               ">"  -> (>)
+               ">=" -> (>=)
+               "<=" -> (<=)
+               _    -> error ("Undefined comparison operator: " ++ s)
 
 evalPred :: Pred -> Vars -> Bool
 evalPred pred s =
     case pred of
-        Compare op a b -> evalExpr a s `op` evalExpr b s
+        Compare op a b -> (evalComp op) (evalExpr a s)  (evalExpr b s)
         And p q -> evalPred p s && evalPred q s
         Or p q -> evalPred p s || evalPred q s
         Not p -> not $ evalPred p s
@@ -128,7 +145,7 @@ evalPred pred s =
 evalContPred :: Pred -> Vector Double -> Bool
 evalContPred pred s =
     case pred of
-        Compare op a b -> evalContExpr a s `op` evalContExpr b s
+        Compare op a b -> (evalComp op) (evalContExpr a s) (evalContExpr b s)
         And p q -> evalContPred p s && evalContPred q s
         Or p q -> evalContPred p s || evalContPred q s
         Not p -> not $ evalContPred p s
@@ -147,7 +164,7 @@ diag zero vec = fmap (V.fromList . (helper 0)) (V.enumFromN 0 (length vec))
             | k == n = vec V.! n : helper (n+1) k
             | otherwise = zero : helper (n+1) k
 
-runSHP :: SHP -> Execution
+runSHP :: SHP -> Execution s
 runSHP shp =
     case shp of
       SDE drift noise boundary -> do
@@ -159,10 +176,11 @@ runSHP shp =
           let noiseF y t = diag 0 (diffsToFlow disc (contIx opts) (length cont) noise y t)
           let boundary' = mapPredExpr (replaceContVars (contIx opts) . replaceVarExpr disc) boundary
           -- lift $ print $ noiseF cont 0
-          (newState, trace) <- lift . runWriterT $
-              euler_maruyama flowF noiseF cont (state ^. time) (\v t -> evalContPred boundary' v && t < (maxTime opts)) (dt opts) (gen opts)
-          tell (map snd trace)
-          put (State disc (snd newState) (fst newState))
+          em_result <- lift $ 
+              euler_maruyama flowF noiseF cont (state ^. time) (\v t -> evalContPred boundary' v && t < (maxTime opts)) (dt opts) (gen opts) []
+          let ((t,y): trace) = em_result
+          tell (fmap snd trace)
+          put (State disc y t)
       Assn v exp -> do
           disc <- use discrete
           (discrete . at v) ?= (evalExpr exp disc)

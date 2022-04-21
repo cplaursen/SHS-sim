@@ -4,7 +4,7 @@ import Euler_Maruyama
 import Data.Vector (Vector, singleton, (!))
 import qualified Data.Vector as V
 import Linear.Vector
-import System.Random.MWC (createSystemRandom, GenIO)
+import System.Random.MWC (createSystemRandom, withSystemRandomST)
 import System.Random.MWC.Distributions
 
 import Graphics.Matplotlib
@@ -17,6 +17,7 @@ import Data.HashMap.Strict (empty)
 import qualified Data.HashMap.Strict as M
 import Control.Monad.RWS (runRWST)
 import Control.Monad.Writer.Strict (runWriter, lift)
+import Control.Monad.ST
 
 const_drift :: Double -> Flow
 const_drift r = (\_ _ -> singleton r)
@@ -51,9 +52,9 @@ plot_sde = do
 interpret :: IO ()
 interpret = do
     c <- getContents
-    g <- createSystemRandom
     let prog = parseSHP $ alexScanTokens c
-    print =<< runRWST (runSHP prog) (Config 200 0.01 g (M.fromList [("x", 0)])) (State empty (singleton 0) 0)
+    a <- withSystemRandomST (\g -> runRWST (runSHP prog) (Config 200000 0.01 g (M.fromList [("x", 0)])) (State empty (singleton 0) 0))
+    return ()
 
 {-
 parse_print :: IO ()

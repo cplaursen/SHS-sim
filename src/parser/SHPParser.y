@@ -46,6 +46,17 @@ import Types
     "="     { TokenEq }
     "/"     { TokenDiv }
 
+%nonassoc "<" ">" "<=" ">=" ":=" "="
+
+%right then else
+%left ";"
+%left "++"
+%left or
+%left and
+%left "+" "-"
+%left "*" "/"
+%left NEG
+
 %%
 
 SHPProg : Blocks { reverse $1 }
@@ -92,20 +103,20 @@ Differentials : Diff { [$1] }
 Expr :: { Expr }
 Expr : real         { Real $1 }
     | id            { Var $1 }
-    | Expr "+" Expr { Bop (+) $1 $3 }
-    | Expr "-" Expr { Bop (-) $1 $3 }
-    | Expr "*" Expr { Bop (*) $1 $3 }
-    | Expr "/" Expr { Bop (/) $1 $3 }
-    | "-" Expr      { Bop (-) (Real 0) $2 }
+    | Expr "+" Expr { Bop "+" $1 $3 }
+    | Expr "-" Expr { Bop "-" $1 $3 }
+    | Expr "*" Expr { Bop "*" $1 $3 }
+    | Expr "/" Expr { Bop "/" $1 $3 }
+    | "-" Expr %prec NEG { Bop "-" (Real 0) $2 }
     | "(" Expr ")"  { $2 }
 
 Pred :: { Pred }
 Pred : bool { Bool $1 }
-     | Expr "=" Expr  { Compare (==) $1 $3 }
-     | Expr ">" Expr  { Compare (>) $1 $3 }
-     | Expr "<" Expr  { Compare (<) $1 $3 }
-     | Expr ">=" Expr { Compare (>=) $1 $3 }
-     | Expr "<=" Expr { Compare (<=) $1 $3 }
+     | Expr "=" Expr  { Compare "==" $1 $3 }
+     | Expr ">" Expr  { Compare ">" $1 $3 }
+     | Expr "<" Expr  { Compare "<" $1 $3 }
+     | Expr ">=" Expr { Compare ">=" $1 $3 }
+     | Expr "<=" Expr { Compare "<=" $1 $3 }
      | Pred or Pred   { Or $1 $3 }
      | Pred and Pred  { And $1 $3 }
      | "~" Pred       { Not $2 }

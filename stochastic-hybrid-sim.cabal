@@ -45,6 +45,7 @@ library
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
     , linear
     , matplotlib
     , microlens-platform
@@ -65,6 +66,7 @@ executable stochastic-hybrid-sim-exe
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
     , linear
     , matplotlib
     , microlens-platform
@@ -87,6 +89,7 @@ test-suite stochastic-hybrid-sim-test
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
     , linear
     , matplotlib
     , microlens-platform
