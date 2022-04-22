@@ -7,7 +7,7 @@ import Linear.Vector
 import System.Random.MWC (createSystemRandom, withSystemRandomST)
 import System.Random.MWC.Distributions
 
-import Graphics.Matplotlib
+-- import Graphics.Matplotlib
 
 import StochasticHybrid
 import SHPParser
@@ -18,6 +18,32 @@ import qualified Data.HashMap.Strict as M
 import Control.Monad.RWS (runRWST)
 import Control.Monad.Writer.Strict (runWriter, lift)
 import Control.Monad.ST
+
+import Options.Applicative
+import Data.Semigroup ((<>))
+
+data Input = FileIn FilePath | StrIn String | StdIn
+data Mode = Parse | Simulate 
+
+data CLIOpt = CLIOpt
+    { program :: Input
+    , mode :: Mode
+    }
+
+cliopt :: Parser CLIOpt
+cliopt = CLIOpt <$> (fileInput <|> strInput <|> stdInput) <*> (flag' Parse (long "parse") <|> flag' Simulate (long "simulate") <|> pure Parse)
+    where
+        fileInput = FileIn <$> strOption
+            (  long "file"
+            <> short 'f'
+            <> metavar "FILENAME"
+            <> help "Input file" )
+        strInput = StrIn <$> argument str (metavar "PROG")
+        stdInput = flag' StdIn 
+            (  long "stdin"
+            <> help "Read from stdin" )
+
+
 
 const_drift :: Double -> Flow
 const_drift r = (\_ _ -> singleton r)
@@ -53,7 +79,7 @@ interpret :: IO ()
 interpret = do
     c <- getContents
     let prog = parseSHP $ alexScanTokens c
-    a <- withSystemRandomST (\g -> runRWST (runSHP prog) (Config 200000 0.01 g (M.fromList [("x", 0)])) (State empty (singleton 0) 0))
+    a <- withSystemRandomST (\g -> runRWST (runSHP prog) (Config 200000 0.01 g (M.fromList [("x", 0)])) (State Data.HashMap.Strict.empty (singleton 0) 0))
     return ()
 
 {-
@@ -68,4 +94,20 @@ lex_print = do
     print $ alexScanTokens c
 -}
 
-main = interpret
+runProgram :: CLIOpt -> IO ()
+runProgram opt = do
+    prog <- case program opt of
+              FileIn p -> readFile p
+              StrIn s -> return s
+              StdIn -> getContents
+    case mode opt of
+      Parse -> print $ parseSHPProg $ alexScanTokens prog
+      Simulate -> print "No"
+
+main :: IO ()
+main = runProgram =<< execParser opts
+    where
+        opts = info (cliopt <**> helper)
+            (  fullDesc 
+            <> progDesc "Simulate supplied SHP" 
+            <> header "SHS-sim - a simulator for stochastic hybrid programs" )

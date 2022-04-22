@@ -33,6 +33,7 @@ dependencies:
   - containers
   - primitive
   - microlens-platform
+  - optparse-applicative
 
 library: 
   source-dirs: 

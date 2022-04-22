@@ -51,6 +51,7 @@ library
     , microlens-platform
     , mtl
     , mwc-random
+    , optparse-applicative
     , primitive
     , unordered-containers
     , vector
@@ -72,6 +73,7 @@ executable stochastic-hybrid-sim-exe
     , microlens-platform
     , mtl
     , mwc-random
+    , optparse-applicative
     , primitive
     , stochastic-hybrid-sim
     , unordered-containers
@@ -95,6 +97,7 @@ test-suite stochastic-hybrid-sim-test
     , microlens-platform
     , mtl
     , mwc-random
+    , optparse-applicative
     , primitive
     , stochastic-hybrid-sim
     , unordered-containers
