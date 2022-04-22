@@ -10,11 +10,7 @@ import Types
 %error { parseError }
 
 %token
-    id      { TokenIdent $$ }
-    "("     { TokenLParen }
-    ")"     { TokenRParen }
-    real    { TokenReal $$ }
-    bool    { TokenBool $$ }
+    shp     { TokenIdent "SHP"}
     dW      { TokenDW }
     dt      { TokenDT }
     skip    { TokenSkip }
@@ -23,7 +19,11 @@ import Types
     then    { TokenThen }
     else    { TokenElse }
     while   { TokenWhile }
-    shp     { TokenSHP }
+    id      { TokenIdent $$ }
+    "("     { TokenLParen }
+    ")"     { TokenRParen }
+    real    { TokenReal $$ }
+    bool    { TokenBool $$ }
     "'"     { TokenPrime }
     ","     { TokenComma }
     "{"     { TokenLCurl }
@@ -64,8 +64,8 @@ SHPProg : Blocks { reverse $1 }
 Blocks : Block { [$1] }
        | Blocks Block { $2 : $1 }
 
-Block : id "{" Definitions "}" { DefBlock $1 (reverse $3) }
-      | shp "{" SHP "}" { SHPBlock $3 }
+Block : shp "{" SHP "}" { SHPBlock $3 }
+      | id "{" Definitions "}" { DefBlock $1 (reverse $3) }
 
 Definitions : Definition { [$1] }
             | Definitions Definition { $2 : $1 }
@@ -73,7 +73,8 @@ Definitions : Definition { [$1] }
 Definition : id "=" Expr ";" { Definition $1 $3 }
 
 SHP :: { SHP }
-SHP : SHP ";" SHP   { Composition $1 $3 } 
+SHP : {- Empty -} { Skip }
+    | SHP ";" SHP   { Composition $1 $3 } 
     | SHP "++" SHP { Choice 0.5 $1 $3 } -- Fix this syntax
     | if Pred then SHP else SHP  { Cond $2 $4 $6 }
     | if Pred then SHP { Cond $2 $4 Abort } -- Might want skip instead of abort

@@ -22,7 +22,6 @@ tokens :-
     while               { \s -> TokenWhile }
     true                { \s -> TokenBool True }
     false               { \s -> TokenBool False }
-    SHP                 { \s -> TokenSHP }
     \+\+                { \s -> TokenUnion }
     :=                  { \s -> TokenAssign } 
     \\\/                { \s -> TokenOr }
@@ -40,7 +39,7 @@ tokens :-
     \)                  { \s -> TokenRParen }
     \{                  { \s -> TokenLCurl } 
     \}                  { \s -> TokenRCurl } 
-    \,                   { \s -> TokenComma }
+    \,                  { \s -> TokenComma }
     \;                  { \s -> TokenSemi } 
     \&                  { \s -> TokenAmpersand } 
     \*                  { \s -> TokenStar } 
