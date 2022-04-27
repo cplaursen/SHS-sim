@@ -75,12 +75,10 @@ plot_sde = do
     print =<< (file "a.png" $ plot x y)
 -}
 
-interpret :: IO ()
-interpret = do
-    c <- getContents
-    let prog = parseSHP $ alexScanTokens c
-    a <- withSystemRandomST (\g -> runRWST (runSHP prog) (Config 200000 0.01 g (M.fromList [("x", 0)])) (State Data.HashMap.Strict.empty (singleton 0) 0))
-    return ()
+interpret text = do
+    let prog = parseSHPProg $ alexScanTokens text
+    a <- withSystemRandomST (\g -> runRWST (runSHP (evalBlocks prog)) (Config 200000 0.01 g (M.fromList [("t", 0)])) (State Data.HashMap.Strict.empty (singleton 0) 0))
+    return a
 
 {-
 parse_print :: IO ()
@@ -101,8 +99,8 @@ runProgram opt = do
               StrIn s -> return s
               StdIn -> getContents
     case mode opt of
-      Parse -> print $ parseSHPProg $ alexScanTokens prog
-      Simulate -> print "No"
+      Parse -> print $ evalBlocks $ parseSHPProg $ alexScanTokens prog
+      Simulate -> interpret prog >>= print
 
 main :: IO ()
 main = runProgram =<< execParser opts

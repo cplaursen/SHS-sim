@@ -65,7 +65,7 @@ data Diff = Diff String Expr
 data Expr = Real Double
           | Var String
           | Cont Int -- Continuous variable - not used in parsing
-          | Const String -- Enumeration
+          | Const String -- Enumeration constant
           | Bop String Expr Expr -- Binary Operation
           deriving (Show, Eq)
 
@@ -76,11 +76,19 @@ data Pred = Compare String Expr Expr
           | Bool Bool
           deriving (Show, Eq)
 
-data Block = SHPBlock SHP | DefBlock String [Definition]
-    deriving (Show, Eq)
-
 data Definition = Definition String Expr
     deriving (Show, Eq)
+
+data Blocks = Blocks
+    { _shpBlock :: SHP
+    , _constBlock :: [Definition]
+    , _enumBlock :: [String]
+    , _contBlock :: [String]
+    }
+    deriving (Show, Eq)
+
+makeLenses ''Blocks
+
 
 -- SHP
 type Flow = Vector Double -> Double -> Vector Double 

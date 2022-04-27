@@ -2,6 +2,7 @@
 module SHPParser where
 import SHPLexer
 import Types
+import Lens.Micro.Platform ((&), (%~), (.~))
 }
 
 %name parseSHP SHP
@@ -10,41 +11,44 @@ import Types
 %error { parseError }
 
 %token
-    shp     { TokenIdent "SHP"}
-    dW      { TokenDW }
-    dt      { TokenDT }
-    skip    { TokenSkip }
-    abort   { TokenAbort }
-    if      { TokenIf }
-    then    { TokenThen }
-    else    { TokenElse }
-    while   { TokenWhile }
-    id      { TokenIdent $$ }
-    "("     { TokenLParen }
-    ")"     { TokenRParen }
-    real    { TokenReal $$ }
-    bool    { TokenBool $$ }
-    "'"     { TokenPrime }
-    ","     { TokenComma }
-    "{"     { TokenLCurl }
-    "}"     { TokenRCurl }
-    ";"     { TokenSemi } 
-    "&"     { TokenAmpersand }
-    ":="    { TokenAssign }
-    "*"     { TokenStar  }
-    "++"    { TokenUnion }
-    "?"     { TokenQuestion }
-    or      { TokenOr }
-    and     { TokenAnd }
-    "~"     { TokenNot }
-    "+"     { TokenPlus }
-    "-"     { TokenMinus }
-    ">"     { TokenGT }
-    "<"     { TokenLT }
-    ">="    { TokenGEQ }
-    "<="    { TokenLEQ }
-    "="     { TokenEq }
-    "/"     { TokenDiv }
+    "SHP"    { TokenIdent "SHP"}
+    "Enum"   { TokenIdent "Enum"}
+    "Consts" { TokenIdent "Consts"}
+    "Continuous" { TokenIdent "Continuous" }
+    dW       { TokenDW }
+    dt       { TokenDT }
+    skip     { TokenSkip }
+    abort    { TokenAbort }
+    if       { TokenIf }
+    then     { TokenThen }
+    else     { TokenElse }
+    while    { TokenWhile }
+    id       { TokenIdent $$ }
+    "("      { TokenLParen }
+    ")"      { TokenRParen }
+    real     { TokenReal $$ }
+    bool     { TokenBool $$ }
+    "'"      { TokenPrime }
+    ","      { TokenComma }
+    "{"      { TokenLCurl }
+    "}"      { TokenRCurl }
+    ";"      { TokenSemi } 
+    "&"      { TokenAmpersand }
+    ":="     { TokenAssign }
+    "*"      { TokenStar  }
+    "++"     { TokenUnion }
+    "?"      { TokenQuestion }
+    or       { TokenOr }
+    and      { TokenAnd }
+    "~"      { TokenNot }
+    "+"      { TokenPlus }
+    "-"      { TokenMinus }
+    ">"      { TokenGT }
+    "<"      { TokenLT }
+    ">="     { TokenGEQ }
+    "<="     { TokenLEQ }
+    "="      { TokenEq }
+    "/"      { TokenDiv }
 
 %nonassoc "<" ">" "<=" ">=" ":=" "="
 
@@ -59,18 +63,21 @@ import Types
 
 %%
 
-SHPProg : Blocks { reverse $1 }
+SHPProg : Blocks { $1 }
 
-Blocks : Block { [$1] }
-       | Blocks Block { $2 : $1 }
-
-Block : shp "{" SHP "}" { SHPBlock $3 }
-      | id "{" Definitions "}" { DefBlock $1 (reverse $3) }
+Blocks : {- Empty -} { emptyBlock }
+       | Blocks "SHP" "{" SHP "}" { $1 & shpBlock .~ $4 }
+       | Blocks "Consts" "{" Definitions "}" { $1 & constBlock %~ (++ reverse $4) }
+       | Blocks "Enum" "{" Ids "}" { $1 & enumBlock %~ (++ reverse $4) }
+       | Blocks "Continuous" "{" Ids "}" { $1 & contBlock %~ (++ reverse $4) }
 
 Definitions : Definition { [$1] }
             | Definitions Definition { $2 : $1 }
 
 Definition : id "=" Expr ";" { Definition $1 $3 }
+
+Ids : id { [$1] }
+    | Ids "," id { $3 : $1 }
 
 SHP :: { SHP }
 SHP : {- Empty -} { Skip }
@@ -88,16 +95,21 @@ SHP : {- Empty -} { Skip }
     | skip { Skip }
     | SDE { $1 }
 
+SDE :: { SHP }
 SDE : Drift "&" Pred { SDE $1 [] $3 }
     | Volatility "&" Pred { SDE [] $1 $3 }
     | Drift "+" Volatility "&" Pred { SDE $1 $3 $5 }
 
+Drift :: { [Diff] }
 Drift : "{" Differentials "}" dt { $2 }
 
+Volatility :: { [Diff] }
 Volatility : "{" Differentials "}" dW { $2 }
 
+Diff :: { Diff }
 Diff : id "'" "=" Expr { Diff $1 $4 }
 
+Differentials :: { [Diff] }
 Differentials : Diff { [$1] }
   | Differentials "," Diff { $3 : $1 }
 
@@ -127,4 +139,8 @@ Pred : bool { Bool $1 }
 
 parseError :: [Token] -> a
 parseError _ = error "Parse error"
+
+emptyBlock :: Blocks
+emptyBlock = Blocks Skip [] [] []
+
 }

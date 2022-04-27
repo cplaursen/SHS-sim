@@ -27,7 +27,6 @@ source-repository head
 
 library
   exposed-modules:
-      DefBlocks
       Euler_Maruyama
       StochasticHybrid
       Types

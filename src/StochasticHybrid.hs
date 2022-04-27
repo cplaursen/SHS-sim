@@ -3,7 +3,7 @@ module StochasticHybrid where
 
 import Data.Vector (Vector)
 import qualified Data.Vector as V
-import Data.HashMap.Strict (HashMap, (!), (!?))
+import Data.HashMap.Strict (HashMap, (!), (!?), fromList)
 import Data.List (sortBy)
 
 import Control.Monad.Writer.Lazy (runWriterT)
@@ -22,32 +22,15 @@ import System.Random.MWC.Distributions (standard)
 
 import Euler_Maruyama
 
-    {-
-type Vars = HashMap String Double
-
-data Config = Config
-    { maxTime :: Double
-    , dt :: Double
-    , gen :: MWC.GenIO
-    , contIx :: HashMap String Int
-    }
-
-data State = State
-    { _discrete :: Vars
-    , _continuous :: Vector Double
-    , _time :: Double
-    } deriving (Show, Eq)
-
-makeLenses ''State
-
-type Execution = RWST Config [Vector Double] State IO ()
--}
-
 {- TODO
     - Implement definition blocks for continuous variables, constants and enumerations
     - Split the normalisation into several data types, e.g. SHP_parsed, SHP_norm, etc.
-    - Implement SHS evolution
 -}
+
+substVar :: (String -> Expr) -> Expr -> Expr
+substVar f (Var s) = f s
+substVar f (Bop op a b) = Bop op (substVar f a) (substVar f b)
+substVar f e = e
 
 mapPredExpr :: (Expr -> Expr) -> Pred -> Pred
 mapPredExpr f pred = case pred of
@@ -70,23 +53,24 @@ mapSHPExpr f shp =
       Cond p m n -> Cond (mapPredExpr f p) (mapSHPExpr f n) (mapSHPExpr f m)
       _ -> shp
 
+replaceEnums :: [String] -> SHP -> SHP
+replaceEnums enums = mapSHPExpr (substVar f)
+    where f str = if str `elem` enums then Const str else Var str
+
+replaceConsts :: [Definition] -> SHP -> SHP
+replaceConsts defs = mapSHPExpr (substVar f)
+    where consts_map = fromList (map (\(Definition a b) -> (a,b)) defs)
+          f str = maybe (Var str) id (consts_map !? str)
 
 replaceVarExpr :: Vars -> Expr -> Expr
-replaceVarExpr vars e = 
-    case e of
-      Var v -> maybe e Real (vars !? v)
-      Bop op a b -> Bop op (replaceVarExpr vars a) (replaceVarExpr vars b)
-      _ -> e
+replaceVarExpr vars = substVar (\s -> maybe (Var s) Real (vars !? s))
 
 replaceVarSHP :: Vars -> SHP -> SHP
 replaceVarSHP = mapSHPExpr . replaceVarExpr 
 
 -- Replace variables tagged as continuous with their index in the continuous vector
 replaceContVars :: HashMap String Int -> Expr -> Expr
-replaceContVars vars exp = case exp of
-                             (Var v) -> maybe (Var v) Cont (vars !? v)
-                             (Bop op a b) -> Bop op (replaceContVars vars a) (replaceContVars vars b)
-                             e -> e
+replaceContVars vars = substVar (\s -> (maybe (Var s) Cont (vars !? s)))
 
 diffsToVec :: HashMap String Int -> Int -> [Diff] -> Vector Expr
 diffsToVec indices vectorLength diffs =
@@ -97,6 +81,11 @@ diffsToVec indices vectorLength diffs =
                                         then e : makeList (n+1) xs
                                         else Real 0 : makeList (n+1) lst
      in V.fromList $ makeList 0 sortedPairs
+
+-- Execute the replacement specified by the definition blocks on the SHP
+evalBlocks :: Blocks -> SHP
+evalBlocks (Blocks shp consts enums conts) = replaceEnums enums $ replaceConsts consts shp
+        
 
 evalOp :: String -> (Double -> Double -> Double)
 evalOp s = case s of
