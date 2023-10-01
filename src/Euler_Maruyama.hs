@@ -1,4 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
 module Euler_Maruyama where
 
 import qualified Data.Vector as V

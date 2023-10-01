@@ -1,4 +1,3 @@
-{-# LANGUAGE NamedFieldPuns, TemplateHaskell #-}
 module StochasticHybrid where
 
 import Data.Vector (Vector)
@@ -27,24 +26,48 @@ import Euler_Maruyama
     - Split the normalisation into several data types, e.g. SHP_parsed, SHP_norm, etc.
 -}
 
-substVar :: (String -> Expr) -> Expr -> Expr
+liftArithExpr :: (ArithExpr -> ArithExpr) -> Expr -> Expr
+liftArithExpr f (ArithExpr e) = ArithExpr (f e)
+liftArithExpr f (Enum e) = Enum e
+
+toArithExpr :: Expr -> ArithExpr
+toArithExpr (ArithExpr e) = e
+toArithExpr (Enum e) = error ("Expected arithmetic expression, got enum: " ++ e)
+
+-- Apply f to all the variable names and replace the variable with the result
+substVar :: (String -> ArithExpr) -> ArithExpr -> ArithExpr
 substVar f (Var s) = f s
 substVar f (Bop op a b) = Bop op (substVar f a) (substVar f b)
 substVar f e = e
 
-mapPredExpr :: (Expr -> Expr) -> Pred -> Pred
-mapPredExpr f pred = case pred of
+mapPredArithExpr :: (ArithExpr -> ArithExpr) -> Pred -> Pred
+mapPredArithExpr f pred = case pred of
+                    PredEq m n -> PredEq (liftArithExpr f m) (liftArithExpr f n)
                     Compare op m n -> Compare op (f m) (f n)
-                    And p q -> And (mapPredExpr f p) (mapPredExpr f q)
-                    Or p q -> Or (mapPredExpr f p) (mapPredExpr f q)
-                    Not p -> Not (mapPredExpr f p)
+                    And p q -> And (mapPredArithExpr f p) (mapPredArithExpr f q)
+                    Or p q -> Or (mapPredArithExpr f p) (mapPredArithExpr f q)
+                    Not p -> Not (mapPredArithExpr f p)
                     _ -> pred
 
+mapPredExpr :: (Expr -> Expr) -> Pred -> Pred
+mapPredExpr f pred =
+    case pred of
+      PredEq m n -> PredEq (f m) (f n)
+      Compare op m n -> Compare op
+                                (toArithExpr (f (ArithExpr m)))
+                                (toArithExpr (f (ArithExpr n)))
+      And p q -> And (mapPredExpr f p) (mapPredExpr f q)
+      Or p q -> Or (mapPredExpr f p) (mapPredExpr f q)
+      Not p -> Not (mapPredExpr f p)
+      _ -> pred
+
+
+-- Map some function on expressions over every expression in an SHP
 mapSHPExpr :: (Expr -> Expr) -> SHP -> SHP
 mapSHPExpr f shp =
     case shp of
       SDE drift noise boundary ->
-          let fDiff (Diff s e) = Diff s (f e)
+          let fDiff (Diff s e) = Diff s (toArithExpr (f (ArithExpr e)))
            in SDE (map fDiff drift) (map fDiff noise) (mapPredExpr f boundary)
       Assn v exp -> Assn v (f exp)
       Choice p n m -> Choice p (mapSHPExpr f n) (mapSHPExpr f m)
@@ -53,26 +76,31 @@ mapSHPExpr f shp =
       Cond p m n -> Cond (mapPredExpr f p) (mapSHPExpr f n) (mapSHPExpr f m)
       _ -> shp
 
+-- Replace variables with enums.
+--   TODO: Raise an error if an enum is mentioned deep in some arithmetic expression
 replaceEnums :: [String] -> SHP -> SHP
-replaceEnums enums = mapSHPExpr (substVar f)
-    where f str = if str `elem` enums then Const str else Var str
+replaceEnums enums = mapSHPExpr f
+    where f e@(ArithExpr (Var str)) = if str `elem` enums then Enum str else e
+          f e = e
 
+-- Replace variables mentioned in definitions with their assigned value
 replaceConsts :: [Definition] -> SHP -> SHP
-replaceConsts defs = mapSHPExpr (substVar f)
+replaceConsts defs = mapSHPExpr (liftArithExpr (substVar f))
     where consts_map = fromList (map (\(Definition a b) -> (a,b)) defs)
           f str = maybe (Var str) id (consts_map !? str)
 
-replaceVarExpr :: Vars -> Expr -> Expr
-replaceVarExpr vars = substVar (\s -> maybe (Var s) Real (vars !? s))
+replaceVarExpr :: Vars -> ArithExpr -> ArithExpr
+replaceVarExpr vars = substVar (\s -> maybe (Var s) (Real) (fromSHPReal <$> (vars !? s)))
 
 replaceVarSHP :: Vars -> SHP -> SHP
-replaceVarSHP = mapSHPExpr . replaceVarExpr 
+replaceVarSHP = mapSHPExpr . liftArithExpr . replaceVarExpr
 
 -- Replace variables tagged as continuous with their index in the continuous vector
-replaceContVars :: HashMap String Int -> Expr -> Expr
+replaceContVars :: HashMap String Int -> ArithExpr -> ArithExpr
 replaceContVars vars = substVar (\s -> (maybe (Var s) Cont (vars !? s)))
 
-diffsToVec :: HashMap String Int -> Int -> [Diff] -> Vector Expr
+-- Construct vector of ODEs, with order given by indices
+diffsToVec :: HashMap String Int -> Int -> [Diff] -> Vector ArithExpr
 diffsToVec indices vectorLength diffs =
     let pairs = map (\(Diff s e) -> (indices ! s, e)) diffs
         sortedPairs = sortBy (\(a,_) (b,_) -> compare a b) pairs
@@ -96,16 +124,25 @@ evalOp s = case s of
              _   -> error ("Undefined binary operator: " ++ s)
 
 -- Discrete variables only - might allow continuous variables in the future
-evalExpr :: Expr -> Vars -> Double
-evalExpr exp s =
+evalExpr :: Expr -> Vars -> SHPTypes
+evalExpr (Enum s) _ = SHPEnum s
+evalExpr (ArithExpr exp) s =
+    case exp of
+      Real x -> SHPReal x
+      Var v -> (s ! v)
+      Bop op a b -> SHPReal $ (evalOp op) (evalArithExpr a s) (evalArithExpr b s)
+      Cont _ -> error "Continuous variables are not allowed in discrete expressions"
+
+evalArithExpr :: ArithExpr -> Vars -> Double
+evalArithExpr exp s =
     case exp of
       Real x -> x
-      Var v -> s ! v
-      Bop op a b -> (evalOp op) (evalExpr a s) (evalExpr b s)
+      Var v -> fromSHPReal (s ! v)
+      Bop op a b -> (evalOp op) (evalArithExpr a s) (evalArithExpr b s)
       Cont _ -> error "Continuous variables are not allowed in discrete expressions"
 
 -- Continuous variables only - use replaceVarExpr on discrete ones
-evalContExpr :: Expr -> Vector Double -> Double
+evalContExpr :: ArithExpr -> Vector Double -> Double
 evalContExpr exp vec =
     case exp of
       Real x -> x
@@ -115,7 +152,6 @@ evalContExpr exp vec =
 
 evalComp :: String -> (Double -> Double -> Bool)
 evalComp s = case s of
-               "==" -> (==)
                "<"  -> (<)
                ">"  -> (>)
                ">=" -> (>=)
@@ -125,7 +161,8 @@ evalComp s = case s of
 evalPred :: Pred -> Vars -> Bool
 evalPred pred s =
     case pred of
-        Compare op a b -> (evalComp op) (evalExpr a s)  (evalExpr b s)
+        PredEq a b -> a == b
+        Compare op a b -> (evalComp op) (evalArithExpr a s) (evalArithExpr b s)
         And p q -> evalPred p s && evalPred q s
         Or p q -> evalPred p s || evalPred q s
         Not p -> not $ evalPred p s
@@ -163,7 +200,7 @@ runSHP shp =
           let cont = state ^. continuous
           let flowF = diffsToFlow disc (contIx opts) (length cont) drift
           let noiseF y t = diag 0 (diffsToFlow disc (contIx opts) (length cont) noise y t)
-          let boundary' = mapPredExpr (replaceContVars (contIx opts) . replaceVarExpr disc) boundary
+          let boundary' = mapPredArithExpr (replaceContVars (contIx opts) . replaceVarExpr disc) boundary
           -- lift $ print $ noiseF cont 0
           em_result <- lift $ 
               euler_maruyama flowF noiseF cont (state ^. time) (\v t -> evalContPred boundary' v && t < (maxTime opts)) (dt opts) (gen opts) []
@@ -176,8 +213,8 @@ runSHP shp =
       RandAssn v lo hi -> do
           g <- asks gen
           disc <- use discrete
-          val <- MWC.uniformR ((evalExpr hi disc), (evalExpr lo disc)) g
-          discrete . at v ?= val
+          val <- MWC.uniformR ((evalArithExpr hi disc), (evalArithExpr lo disc)) g
+          discrete . at v ?= (SHPReal val)
       Choice prob n m -> do
           g <- asks gen
           val <- MWC.uniformR (0,1) g

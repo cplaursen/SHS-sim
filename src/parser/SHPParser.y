@@ -90,7 +90,7 @@ SHP : {- Empty -} { Skip }
     | "(" SHP ")" { $2 }
     | while Pred SHP { While $2 $3 }
     | id ":=" "{" Expr "," Expr "}" { RandAssn $1 $4 $6 }
-    | id ":=" Expr { Assn $1 $3 }
+    | id ":=" Expr { Assn $1 (ArithExpr $3) }
     | abort { Abort }
     | skip { Skip }
     | SDE { $1 }
@@ -113,7 +113,7 @@ Differentials :: { [Diff] }
 Differentials : Diff { [$1] }
   | Differentials "," Diff { $3 : $1 }
 
-Expr :: { Expr }
+Expr :: { ArithExpr }
 Expr : real         { Real $1 }
     | id            { Var $1 }
     | Expr "+" Expr { Bop "+" $1 $3 }
@@ -125,7 +125,7 @@ Expr : real         { Real $1 }
 
 Pred :: { Pred }
 Pred : bool { Bool $1 }
-     | Expr "=" Expr  { Compare "==" $1 $3 }
+     | Expr "=" Expr  { PredEq (ArithExpr $1) (ArithExpr $3) }
      | Expr ">" Expr  { Compare ">" $1 $3 }
      | Expr "<" Expr  { Compare "<" $1 $3 }
      | Expr ">=" Expr { Compare ">=" $1 $3 }

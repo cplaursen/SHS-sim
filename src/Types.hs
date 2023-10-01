@@ -48,8 +48,9 @@ data Token = TokenIdent String
 
 -- Parsing
 
+-- Holds a stochastic hybrid program
 data SHP = Assn String Expr
-      | RandAssn String Expr Expr -- Uniform distribution [fst..snd]
+      | RandAssn String ArithExpr ArithExpr -- Uniform distribution [fst..snd]
       | Choice Double SHP SHP
       | Composition SHP SHP
       | While Pred SHP
@@ -59,26 +60,36 @@ data SHP = Assn String Expr
       | SDE [Diff] [Diff] Pred
       deriving (Show, Eq)
    
-data Diff = Diff String Expr
+-- Single differential equality - an ODE is a list of these
+data Diff = Diff String ArithExpr
     deriving (Show, Eq)
 
-data Expr = Real Double
+-- An expression is either arithmetic or some enumeration symbol
+data Expr = ArithExpr ArithExpr | Enum String -- Enumeration constant
+    deriving (Show, Eq)
+
+-- Arithmetic expressions always evaluate to a Double
+--  Change Double to rationals (or something else)
+data ArithExpr = Real Double
           | Var String
           | Cont Int -- Continuous variable - not used in parsing
-          | Const String -- Enumeration constant
-          | Bop String Expr Expr -- Binary Operation
+          | Bop String ArithExpr ArithExpr -- Binary Operation
           deriving (Show, Eq)
 
-data Pred = Compare String Expr Expr
+-- Predicates on expressions
+data Pred = PredEq Expr Expr
+          | Compare String ArithExpr ArithExpr
           | And Pred Pred
           | Or Pred Pred
           | Not Pred
           | Bool Bool
           deriving (Show, Eq)
 
-data Definition = Definition String Expr
+-- Single definition in a block
+data Definition = Definition String ArithExpr
     deriving (Show, Eq)
 
+-- Holds an SHP, together with any meta-information about it: constants, symbols and continuous variables
 data Blocks = Blocks
     { _shpBlock :: SHP
     , _constBlock :: [Definition]
@@ -89,12 +100,18 @@ data Blocks = Blocks
 
 makeLenses ''Blocks
 
-
 -- SHP
 type Flow = Vector Double -> Double -> Vector Double 
 type Noise = Vector Double -> Double -> Vector (Vector Double)
 
-type Vars = HashMap String Double
+data SHPTypes = SHPReal Double | SHPBool Bool | SHPEnum String
+    deriving (Show, Eq)
+
+fromSHPReal :: SHPTypes -> Double
+fromSHPReal (SHPReal a) = a
+fromSHPReal (SHPEnum a) = error ("Type error - expected number: " ++ a)
+
+type Vars = HashMap String SHPTypes
 
 data Config s = Config
     { maxTime :: Double

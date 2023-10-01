@@ -1,19 +1,19 @@
 // Thermostat
 
-Enum {on, off}
-
 Consts {
     K = 3; 
     Ambient = -0.1;
 }
 
-SHP {
-    state := on;
-    while true (
-        (if t <= 18 then state := on) ;
-        (if t >= 22 then state := off) ;
+Continuous {t}
 
-        if state = on
+SHP {
+    state := 0;
+    while true (
+        (if t <= 18 then state := 0) ;
+        (if t >= 22 then state := 1) ;
+
+        if state = 0
             then {t'=K} dt + {t' = 0.1} dW & t >= 18 /\ t <= 22
             else {t'= Ambient} dt + {t' = 0.1} dW & t >= 18 /\ t <= 22
     )
