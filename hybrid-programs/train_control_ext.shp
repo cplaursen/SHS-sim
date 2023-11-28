@@ -3,9 +3,7 @@ b = -0.4;
 A = 2;
 }
 
-//
-////Enum { accel, brake }
-//
+Enum { accel, brake }
 
 Vars {
     q = accel;

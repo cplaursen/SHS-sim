@@ -1,6 +1,6 @@
 Variables {
- real x;
- real y;
+ x :: real
+ y :: real
 }
 
 Constants {

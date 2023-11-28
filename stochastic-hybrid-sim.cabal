@@ -1,15 +1,15 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 
 name:           stochastic-hybrid-sim
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/stochastic-hybrid-sim#readme>
-homepage:       https://github.com/githubuser/stochastic-hybrid-sim#readme
-bug-reports:    https://github.com/githubuser/stochastic-hybrid-sim/issues
-author:         Author name here
+homepage:       https://github.com/cplaursen/stochastic-hybrid-sim#readme
+bug-reports:    https://github.com/cplaursen/stochastic-hybrid-sim/issues
+author:         Christian Pardillo Laursen
 maintainer:     example@example.com
 copyright:      2022 Author name here
 license:        BSD3
@@ -18,21 +18,26 @@ build-type:     Simple
 extra-source-files:
     README.md
     ChangeLog.md
-    src/parser/SHPParser.y
-    src/parser/SHPLexer.x
+    src/parser/Parser.y
+    src/parser/Lexer.x
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/stochastic-hybrid-sim
+  location: https://github.com/cplaursen/stochastic-hybrid-sim
 
 library
   exposed-modules:
+      AST_Operations
+      CLI
       Euler_Maruyama
+      Execution
+      SHPTypes
       StochasticHybrid
-      Types
+      Typecheck
+      Lexer
+      Parser
       SHP
-      SHPLexer
-      SHPParser
+      Types
   other-modules:
       Paths_stochastic_hybrid_sim
   hs-source-dirs:
@@ -43,7 +48,7 @@ library
     , happy
   build-depends:
       array
-    , base >=4.7 && <5
+    , base
     , containers
     , linear
     , matplotlib
@@ -52,11 +57,12 @@ library
     , mwc-random
     , optparse-applicative
     , primitive
+    , syb
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
-executable stochastic-hybrid-sim-exe
+executable stochastic-hybrid-sim
   main-is: Main.hs
   other-modules:
       Paths_stochastic_hybrid_sim
@@ -65,7 +71,7 @@ executable stochastic-hybrid-sim-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.7 && <5
+    , base
     , containers
     , linear
     , matplotlib
@@ -75,9 +81,10 @@ executable stochastic-hybrid-sim-exe
     , optparse-applicative
     , primitive
     , stochastic-hybrid-sim
+    , syb
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
 test-suite stochastic-hybrid-sim-test
   type: exitcode-stdio-1.0
@@ -89,7 +96,7 @@ test-suite stochastic-hybrid-sim-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.7 && <5
+    , base
     , containers
     , linear
     , matplotlib
@@ -99,6 +106,7 @@ test-suite stochastic-hybrid-sim-test
     , optparse-applicative
     , primitive
     , stochastic-hybrid-sim
+    , syb
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021

@@ -1,8 +1,27 @@
-q := accel;
+Variables {
+ q :: enum
+ z :: real
+ v :: real
+ a :: real
+ i :: real
+}
 
-( 
-    (?q = accel; {z' = v, v' = a} dt + {a' = 0.1} dW & t < eps)
- ++ (?q = accel /\ z >= s; a := -b; q := brake; ?v >= 0)
- ++ (?q = brake; {z' = v, v' = a} dt & v >= 0)
- ++ (?q = brake /\ v <= 1; a := a + 5; q := accel)
-)*
+Enumeration { accel, brake }
+
+Constants {
+ b = -1,
+ eps = 0.1
+}
+
+SHP {
+    q := accel;
+    i := 0;
+    a := 0;
+    while (i < 10)
+    (( 
+        (?q = accel; {z' = v, v' = a} dt + {a' = 0.1} dW & t < eps)
+     ++ (?q = accel /\ z >= s; a := -b; q := brake; ?v >= 0)
+     ++ (?q = brake; {z' = v, v' = a} dt & v >= 0)
+     ++ (?q = brake /\ v <= 1; a := a + 5; q := accel)
+     ); i := i+1)
+}

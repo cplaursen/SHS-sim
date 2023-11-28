@@ -1,7 +1,7 @@
 module SHP where
 
-import SHPLexer
-import SHPParser
+import Lexer
+import Parser
 
 main :: IO ()
 main = undefined

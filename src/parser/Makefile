@@ -1,14 +1,14 @@
 all: SHP
 
-SHPLexer.hs : SHPLexer.x
-	alex SHPLexer.x
+Lexer.hs : Lexer.x
+	alex -g Lexer.x
 
-SHPParser.hs : SHPParser.y
-	happy SHPParser.y
+Parser.hs : Parser.y
+	happy -gc Parser.y
     
-SHP : SHPLexer.hs SHPParser.hs SHP.hs
-	ghc --make SHP
+SHP : Lexer.hs Parser.hs SHP.hs
+	stack ghc -- --make SHP
     
 clean:
-	rm -f SHP SHPLexer.hs SHPParser.hs *.o *.hi
+	rm -f SHP Lexer.hs Parser.hs *.o *.hi
     
