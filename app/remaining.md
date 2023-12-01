@@ -1,2 +1,0 @@
- - Finish simulation command
- - Add input options
