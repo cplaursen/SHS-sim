@@ -1,17 +1,25 @@
 {-# LANGUAGE TemplateHaskell, GADTs, StandaloneDeriving #-}
-module SHPTypes where
+module Types where
 
 import Data.Map.Strict (Map)
 import Data.Vector (Vector)
-import Data.Monoid (Endo)
-import System.Random.MWC (Gen)
-import Lens.Micro.Platform
-import Control.Monad.RWS (RWST)
-import Control.Monad.Primitive
+import Data.Set ( Set )
+
 import Data.Dynamic
 import Data.Type.Equality
-import Types
 
+import System.Random.MWC (Gen)
+
+import Lens.Micro.Platform
+
+import Control.Monad.RWS ( RWST, Endo )
+import Control.Monad.Primitive
+
+import ParsingTypes
+
+{--------------------------------------------
+-- Elements of a stochastic hybrid program --
+---------------------------------------------}
 data Var a where
     Var :: Typeable a => String -> SHPType a -> Var a
 
@@ -84,6 +92,7 @@ type Noise = Vector Double -> Double -> Vector (Vector Double)
 data SHP where
     Assn :: forall a. Var a -> Expr a -> SHP
     RandAssn :: Var Double -> Expr Double -> Expr Double -> SHP -- Uniform distribution [fst..snd]
+    Input :: forall a. Var a -> SHP
     Choice :: Expr Double -> SHP -> SHP -> SHP
     Composition :: SHP -> SHP -> SHP
     While :: Expr Bool -> SHP -> SHP
@@ -109,19 +118,53 @@ instance TestEquality SHPType where
     testEquality SHPEnum SHPEnum = Just Refl
     testEquality _       _       = Nothing
 
+{---------------------------------------
+-- Existential types for typechecking --
+---------------------------------------}
+
 data ASHPType = forall a. Typeable a => ASHPType (SHPType a)
+deriving instance Show ASHPType
 
 toASHPType :: PSHPType -> ASHPType
 toASHPType HPReal = ASHPType SHPReal
 toASHPType HPEnum = ASHPType SHPEnum
 toASHPType HPBool = ASHPType SHPBool
 
-deriving instance Show ASHPType
+-- Utility function to unwrap and rewrap the existentially quantified ASHPType
+unwrapASHPType :: (forall a. Typeable a => SHPType a -> b) -> ASHPType -> b
+unwrapASHPType f a = case a of
+                       ASHPType SHPReal -> f SHPReal
+                       ASHPType SHPBool -> f SHPBool
+                       ASHPType SHPEnum -> f SHPEnum
+
+instance Eq ASHPType where
+    ASHPType t1 == ASHPType t2 =
+        case t1 `testEquality` t2 of
+          Just Refl -> True
+          Nothing -> False
+
+-- Our type universe is given by SHPTypes
+type Env = Map String ASHPType
+
+-- Hide away the type 
+data AExpr = forall a. Typeable a => Expr a ::: SHPType a
+
+data AUOp = forall a b. (Typeable a, Typeable b) =>
+    AUOp (UOperator a b) (SHPType a) (SHPType b)
+
+data ABOp = forall a b c.
+    (Typeable a, Typeable b, Typeable c) => ABOp (BOperator a b c) (SHPType a) (SHPType b) (SHPType c)
+
+{------------------------
+-- Types for execution --
+------------------------}
 
 data Config m = Config
     { maxTime :: Double
     , dt :: Double
     , gen :: Gen (PrimState m)
+    , types :: Env
+    , enums :: Set String
     }
 
 data State = State

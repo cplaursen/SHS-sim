@@ -1,0 +1,24 @@
+Constants {
+    K = 3;
+    Ambient = -0.1;
+}
+
+Enums { On, Off }
+
+Variables {
+    enum state;
+    real temp;
+    real counter;
+}
+
+SHP {
+    counter := 0;
+    while (counter < 10) {
+        (if t <= 18 then state := On);
+        (if t >= 22 then state := Off);
+        (if state = On
+            then ({temp'=K} dt + {temp' = 0.1} dW & temp >= 18 and temp <= 22)
+            else ({temp'= Ambient} dt + {temp' = 0.1} dW & temp >= 18 and temp <= 22));
+     counter := counter + 1
+ }
+}

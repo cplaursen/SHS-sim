@@ -7,6 +7,8 @@ import Data.Map ( Map, (!), (!?), fromList, insert )
 import Data.List (sortBy)
 import Data.Dynamic
 import Data.Maybe ( fromJust )
+import Data.Set ( Set )
+import Type.Reflection
 
 import Control.Monad.Writer.Lazy (runWriterT)
 
@@ -18,12 +20,14 @@ import Lens.Micro.Platform
 import Parser
 import Lexer
 import Types
-import SHPTypes
+import AST_Operations
 
 import qualified System.Random.MWC as MWC
 import System.Random.MWC.Distributions (standard)
 
 import Euler_Maruyama
+
+import Typecheck
 
 evalExpr :: Store -> Expr a -> a
 evalExpr ctx expr =
@@ -76,7 +80,13 @@ getDiffVar (Diff (Var s _) _) = s
 getDiffExpr :: Diff -> Expr Double
 getDiffExpr (Diff _ exp) = exp
 
-runSHP :: SHP -> Execution s ()
+readAExpr :: Env -> Set String -> String -> Either String AExpr
+readAExpr env enums string = do
+    parsed <- runAlex string parseExpr 
+    let withEnums = replaceEnum enums parsed
+    typeCheckPExpr env withEnums
+
+runSHP :: SHP -> Execution IO ()
 runSHP shp =
     case shp of
       SDE drift noise boundary -> do
@@ -99,6 +109,19 @@ runSHP shp =
           disc <- use store
           val <- MWC.uniformR (evalExpr disc hi, evalExpr disc lo) g
           store . at v ?= toDyn val
+      Input (Var v typ) -> do
+          env <- asks types
+          enums <- asks enums
+          disc <- use store
+          lift $ putStrLn $ "Input expression for variable " ++ v
+          response <- lift getLine
+          let expression = do
+                    expr ::: eTyp <- readAExpr env enums response
+                    Refl <- testEqualityEither ("Incorrect type for variable " ++ v) typ eTyp
+                    return (toDyn (evalExpr disc expr))
+          case expression of
+            Left err -> lift (print err) >> runSHP shp
+            Right expr -> store . at v ?= expr
       Choice prob n m -> do
           g <- asks gen
           disc <- use store

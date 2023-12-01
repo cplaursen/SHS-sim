@@ -1,7 +1,7 @@
 {
 module Lexer where
 
-import Types
+import ParsingTypes
 }
 
 %wrapper "monad"
@@ -16,6 +16,7 @@ tokens :-
     dt                  { mkL TokenDT     }
     abort               { mkL TokenAbort } 
     skip                { mkL TokenSkip } 
+    input               { mkL TokenInput } 
     if                  { mkL TokenIf }
     then                { mkL TokenThen }
     else                { mkL TokenElse } 

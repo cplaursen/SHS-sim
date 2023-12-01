@@ -31,13 +31,13 @@ library
       CLI
       Euler_Maruyama
       Execution
-      SHPTypes
       StochasticHybrid
       Typecheck
+      Types
       Lexer
       Parser
+      ParsingTypes
       SHP
-      Types
   other-modules:
       Paths_stochastic_hybrid_sim
   hs-source-dirs:

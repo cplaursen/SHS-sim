@@ -1,12 +1,12 @@
 {
-module Parser ( parseSHP, parseSHPProg ) where
+module Parser ( parseExpr, parseSHPProg ) where
 import Lexer
-import Types
+import ParsingTypes
 import Lens.Micro.Platform ((&), (%~), (.~))
 
 }
 
-%name parseSHP SHP
+%name parseExpr Expr
 %name parseSHPProg SHPProg
 %tokentype { Lexeme }
 %error { parseError }
@@ -19,7 +19,6 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     "Enums"   { L _ (TokenIdent "Enums")}
     "Constants" { L _ (TokenIdent "Constants")}
     "Variables" { L _ (TokenIdent "Variables") }
-
     "real"   { L _ (TokenIdent "real") }
     "bool"   { L _ (TokenIdent "bool") }
     "int"    { L _ (TokenIdent "int") }
@@ -28,6 +27,7 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     dt       { L _ TokenDT }
     skip     { L _ TokenSkip }
     abort    { L _ TokenAbort }
+    input    { L _ TokenInput }
     if       { L _ TokenIf }
     then     { L _ TokenThen }
     else     { L _ TokenElse }
@@ -82,11 +82,11 @@ Blocks : {- Empty -} { emptyBlock }
        | Blocks "Variables" "{" Vars "}" { $1 & varsBlock %~ (++ reverse $4) }
 
 Definitions :: { [Def] }
-Definitions : Definition { [$1] }
-            | Definitions "," Definition { $3 : $1 }
+Definitions : {- Empty -} { [] }
+            | Definitions Definition { $2 : $1 }
 
 Definition :: { Def }
-Definition : id "=" Expr { Def $1 $3 }
+Definition : id "=" Expr ";" { Def $1 $3 }
 
 Ids :: { [String] }
 Ids : id { [$1] }
@@ -114,9 +114,10 @@ SHP : {- Empty -} { PSkip }
     | if Expr then SHP { PCond $2 $4 PSkip }
     | "?" Expr { PCond $2 PSkip PAbort }
     | "(" SHP ")" { $2 }
-    | while Expr SHP { PWhile $2 $3 }
+    | while Expr "{" SHP "}" { PWhile $2 $4 }
     | id ":=" "{" Expr "," Expr "}" { PRandAssn $1 $4 $6 }
     | id ":=" Expr { PAssn $1 $3 }
+    | input id { PInput $2 }
     | abort { PAbort }
     | skip { PSkip }
     | SDE { $1 }

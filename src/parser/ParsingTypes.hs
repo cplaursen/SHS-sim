@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, GADTs, RankNTypes, DeriveDataTypeable, DeriveFunctor #-}
-module Types where
+module ParsingTypes where
 
 import Data.Vector ( Vector )
 import Lens.Micro.Platform ( makeLenses )
@@ -16,6 +16,7 @@ data Token = TokenIdent String
            | TokenDT     
            | TokenAbort  
            | TokenSkip
+           | TokenInput
            | TokenIf 
            | TokenThen 
            | TokenElse  
@@ -58,6 +59,7 @@ data PExpr = PReal Double
 
 data PSHP = PAssn Variable PExpr
           | PRandAssn Variable PExpr PExpr
+          | PInput Variable
           | PChoice PExpr PSHP PSHP
           | PComp PSHP PSHP
           | PWhile PExpr PSHP

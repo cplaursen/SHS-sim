@@ -2,7 +2,7 @@
 module Typecheck where
 
 import Types
-import SHPTypes
+import ParsingTypes
 import Type.Reflection
 import Control.Monad
 import Data.Map ( Map, (!) )
@@ -16,19 +16,6 @@ testEqualityEither err a b = case testEquality a b of
                                Just Refl -> Right Refl
                                Nothing -> Left err
 
-instance Eq ASHPType where
-    ASHPType t1 == ASHPType t2 = case t1 `testEquality` t2 of
-                                   Just Refl -> True
-                                   Nothing -> False
--- Hide away the type 
-data AExpr = forall a. Typeable a => Expr a ::: SHPType a
-
--- Our type universe is given by SHPTypes
-type Env = Map String ASHPType
-
-data AUOp = forall a b. (Typeable a, Typeable b) =>
-    AUOp (UOperator a b) (SHPType a) (SHPType b)
-
 typeUOp :: String -> SHPType a -> Either String AUOp
 typeUOp op typ
   | op == "-" = case typ of
@@ -37,9 +24,6 @@ typeUOp op typ
   | op == "~" = case typ of
                   SHPBool -> Right (AUOp Not SHPBool SHPBool)
                   _ -> Left "Coudln't match type of (~) with argument"
-
-data ABOp = forall a b c.
-    (Typeable a, Typeable b, Typeable c) => ABOp (BOperator a b c) (SHPType a) (SHPType b) (SHPType c)
 
 typeBOp :: String -> SHPType a -> SHPType b -> Either String ABOp
 typeBOp op arg1 arg2 = 
@@ -57,7 +41,7 @@ typeBOp op arg1 arg2 =
                  (SHPReal, SHPReal) -> Right $ ABOp Divide SHPReal SHPReal SHPReal
                  _ -> Left "Wrong type"
         -- Ideally this would be done with testEquality but then it can't resolve the typeclass Eq
-        "==" -> case (arg1, arg2) of
+        "=" -> case (arg1, arg2) of
                   (SHPReal, SHPReal) -> Right $ ABOp Eq arg1 arg2 SHPBool
                   (SHPBool, SHPBool) -> Right $ ABOp Eq arg1 arg2 SHPBool
                   (SHPEnum, SHPEnum) -> Right $ ABOp Eq arg1 arg2 SHPBool
@@ -83,10 +67,7 @@ typeCheckPExpr env e =
       PEnum e -> Right $  Enum e ::: SHPEnum
       PVar v -> 
           let t = env!v
-           in Right $ case t of
-                        ASHPType SHPReal -> EVar (Var v SHPReal) ::: SHPReal
-                        ASHPType SHPBool -> EVar (Var v SHPBool) ::: SHPBool
-                        ASHPType SHPEnum -> EVar (Var v SHPEnum) ::: SHPEnum
+           in Right $ unwrapASHPType (\typ -> EVar (Var v typ) ::: typ) t
       PBop op f g -> do
           f_typed ::: f_t <- typeCheckPExpr env f
           g_typed ::: g_t <- typeCheckPExpr env g
@@ -118,7 +99,6 @@ typeCheckPSHP env shp =
             exp_typed ::: typ <- typeCheckPExpr env exp
             guard (ASHPType typ == var_typ)
             return $ Assn (Var var typ) exp_typed
-        -- Not super sure if this will work
         PRandAssn var lo hi -> do
             guard (case env!var of
                      ASHPType SHPReal -> True
@@ -126,6 +106,7 @@ typeCheckPSHP env shp =
             lo_typed ::: SHPReal <- typeCheckPExpr env lo
             hi_typed ::: SHPReal <- typeCheckPExpr env hi
             return $ RandAssn (Var var SHPReal) lo_typed hi_typed
+        PInput var -> Right $ unwrapASHPType (Input . Var var) (env!var)
         PChoice prob left right -> do
             prob_typed ::: SHPReal <- typeCheckPExpr env prob
             left_shp <- typeCheckPSHP env left

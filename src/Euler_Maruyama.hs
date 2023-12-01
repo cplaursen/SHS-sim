@@ -13,7 +13,7 @@ import Control.Monad.RWS
 import System.Random.MWC (Gen, GenIO, GenST)
 import System.Random.MWC.Distributions (normal) 
 
-import SHPTypes
+import Types
 
 euler :: Flow -- ODE
       -> Double -- Target time
@@ -63,7 +63,7 @@ eulerMaruyamaTrace :: PrimMonad m
 eulerMaruyamaTrace flow noise boundary state =
     do
         t <- use time
-        Config maxTime dt gen <- ask
+        Config {maxTime=maxTime, dt=dt, gen=gen} <- ask
         if maxTime <= t || not (boundary t state)
            then return state
            else do

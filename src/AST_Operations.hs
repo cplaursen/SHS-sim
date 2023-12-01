@@ -1,9 +1,9 @@
 module AST_Operations where
 
-import SHPTypes
+import ParsingTypes
 import Types
 import Data.Generics hiding ( typeRep, empty )
-import Data.Set ( Set, insert, empty, singleton, union )
+import Data.Set ( Set, insert, empty, singleton, union, fromList )
 import Lens.Micro.Platform
 
 -----------------------------
@@ -41,15 +41,14 @@ substDef (Def v e1) = everywhere (mkT helper)
           | otherwise = PVar w
         helper x = x
 
-replaceEnum :: Data a => String -> a -> a
-replaceEnum e = everywhere (mkT helper)
+replaceEnum :: Data a => Set String -> a -> a
+replaceEnum enums = everywhere (mkT helper)
     where
         helper (PVar v)
-          | e == v = PEnum e
+          | v `elem` enums = PEnum v
           | otherwise = PVar v
         helper x = x
 
 evalBlocks :: Blocks -> PSHP
-evalBlocks block = replaceDefs (block^. constBlock) $ replaceEnums (block ^. enumBlock) (block ^. shpBlock)
-    where replaceEnums strings value = foldr replaceEnum value strings
-          replaceDefs defs value = foldr substDef value defs
+evalBlocks block = replaceDefs (block ^. constBlock) $ replaceEnum (fromList (block ^. enumBlock)) (block ^. shpBlock)
+    where replaceDefs defs value = foldr substDef value defs
