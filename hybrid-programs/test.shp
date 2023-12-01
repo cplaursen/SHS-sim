@@ -1,12 +1,20 @@
+Constants {
+ C = 0;
+}
+
+Enums {
+    On, Off
+}
+
 Variables {
  real x;
  real y;
-}
-
-Constants {
- C = 3.0
+ enum z;
 }
 
 SHP {
-    x := 0;
+input x;
+input y;
+input z;
+if (z = On) then {x' = 1, y'=x} dt + {x'=0.1, y'=0} dW & x < 10
 }

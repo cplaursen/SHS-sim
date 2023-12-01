@@ -32,6 +32,7 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     then     { L _ TokenThen }
     else     { L _ TokenElse }
     while    { L _ TokenWhile }
+    choice   { L _ TokenChoice }
     id       { L _ (TokenIdent $$) }
     "("      { L _ TokenLParen }
     ")"      { L _ TokenRParen }
@@ -45,7 +46,6 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     "&"      { L _ TokenAmpersand }
     ":="     { L _ TokenAssign }
     "*"      { L _ TokenStar  }
-    "++"     { L _ TokenUnion }
     "?"      { L _ TokenQuestion }
     or       { L _ TokenOr }
     and      { L _ TokenAnd }
@@ -61,9 +61,6 @@ import Lens.Micro.Platform ((&), (%~), (.~))
 
 %nonassoc "<" ">" "<=" ">=" ":=" "="
 
-%right then else
-%left ";"
-%left "++"
 %left or
 %left and
 %left "+" "-"
@@ -76,7 +73,7 @@ SHPProg : Blocks { $1 }
 
 Blocks :: { Blocks }
 Blocks : {- Empty -} { emptyBlock }
-       | Blocks "SHP" "{" SHP "}" { $1 & shpBlock .~ $4 }
+       | Blocks "SHP" "{" SHPLines "}" { $1 & shpBlock .~ (linesToSHP $4) }
        | Blocks "Constants" "{" Definitions "}" { $1 & constBlock %~ (++ reverse $4) }
        | Blocks "Enums" "{" Ids "}" { $1 & enumBlock %~ (++ reverse $4) }
        | Blocks "Variables" "{" Vars "}" { $1 & varsBlock %~ (++ reverse $4) }
@@ -106,21 +103,24 @@ Typedecl : "real" { HPReal }
          | "int"  { HPInt }
          | "enum" { HPEnum }
 
-SHP :: { PSHP }
-SHP : {- Empty -} { PSkip }
-    | SHP ";" SHP   { PComp $1 $3 } 
-    | SHP "++" SHP { PChoice (PReal 0.5) $1 $3 } -- Fix this syntax
-    | if Expr then SHP else SHP  { PCond $2 $4 $6 }
-    | if Expr then SHP { PCond $2 $4 PSkip }
-    | "?" Expr { PCond $2 PSkip PAbort }
-    | "(" SHP ")" { $2 }
-    | while Expr "{" SHP "}" { PWhile $2 $4 }
-    | id ":=" "{" Expr "," Expr "}" { PRandAssn $1 $4 $6 }
-    | id ":=" Expr { PAssn $1 $3 }
-    | input id { PInput $2 }
-    | abort { PAbort }
-    | skip { PSkip }
-    | SDE { $1 }
+SHPLines :: { [PSHP] }
+SHPLines : SHPLine { [$1] }
+         | SHPLines SHPLine { $2 : $1 }
+
+SHPLine :: { PSHP }
+SHPLine : {- Empty -} { PSkip }
+       -- Maybe add an Expr field to control probability
+    | choice "{" SHPLines "}" "{" SHPLines "}" { PChoice (PReal 0.5) (linesToSHP $3) (linesToSHP $6) }
+    | if Expr "{" SHPLines "}" else "{" SHPLines "}" { PCond $2 (linesToSHP $4) (linesToSHP $8) }
+    | if Expr "{" SHPLines "}" { PCond $2 (linesToSHP $4) PSkip }
+    | "?" Expr ";" { PCond $2 PSkip PAbort }
+    | while Expr "{" SHPLines "}" { PWhile $2 (linesToSHP $4) }
+    | id ":=" "{" Expr "," Expr "}" ";" { PRandAssn $1 $4 $6 }
+    | id ":=" Expr ";" { PAssn $1 $3 }
+    | input id ";" { PInput $2 }
+    | abort ";" { PAbort }
+    | skip ";" { PSkip }
+    | SDE ";" { $1 }
 
 SDE :: { PSHP }
 SDE : Drift "&" Expr { PSDE $1 [] $3 }
@@ -160,6 +160,12 @@ Expr : real         { PReal $1 }
     | "(" Expr ")"  { $2 }
 
 { 
+
+-- Parser only returns non-empty lists of lines
+linesToSHP :: [PSHP] -> PSHP
+linesToSHP [] = error "Called linesToSHP on empty list, something has gone wrong in the parser"
+linesToSHP (x:[]) = x
+linesToSHP (x:xs) = PComp (linesToSHP xs) x
 
 parseError :: Lexeme -> Alex a
 parseError _ = alexError "Parse error"

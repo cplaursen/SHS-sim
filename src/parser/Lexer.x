@@ -21,9 +21,9 @@ tokens :-
     then                { mkL TokenThen }
     else                { mkL TokenElse } 
     while               { mkL TokenWhile }
+    choice              { mkL TokenChoice }
     true                { mkL $ TokenBool True }
     false               { mkL $ TokenBool False }
-    \+\+                { mkL TokenUnion }
     :=                  { mkL TokenAssign } 
     \\\/                { mkL TokenOr }
     \/\\                { mkL TokenAnd }

@@ -21,6 +21,7 @@ data Token = TokenIdent String
            | TokenThen 
            | TokenElse  
            | TokenWhile
+           | TokenChoice
            | TokenSHP
            | TokenPrime
            | TokenComma
@@ -30,7 +31,6 @@ data Token = TokenIdent String
            | TokenAmpersand
            | TokenAssign 
            | TokenStar
-           | TokenUnion
            | TokenQuestion 
            | TokenOr
            | TokenAnd

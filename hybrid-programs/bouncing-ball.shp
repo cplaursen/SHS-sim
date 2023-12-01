@@ -1,5 +1,5 @@
 Constants {
- g = -9.81
+ g = -9.81;
 }
 
 Variables {
@@ -12,9 +12,12 @@ SHP {
     input x;
     v := 1;
     i := 0;
-    while (i < 10) (
-        (if x <= 0 then (v := -0.8 * v; x := 0));
-        ({x' = v, v' = g} dt & x >= 0);
+    while (i < 10) {
+        if x <= 0 {
+             v := -0.8 * v;
+             x := 0;
+         }
+        {x' = v, v' = g} dt & x >= 0;
         i := i + 1;
-    )
+    }
 }

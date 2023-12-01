@@ -13,12 +13,20 @@ Variables {
 
 SHP {
     counter := 0;
+    temp := 20;
+    state := On;
     while (counter < 10) {
-        (if t <= 18 then state := On);
-        (if t >= 22 then state := Off);
-        (if state = On
-            then ({temp'=K} dt + {temp' = 0.1} dW & temp >= 18 and temp <= 22)
-            else ({temp'= Ambient} dt + {temp' = 0.1} dW & temp >= 18 and temp <= 22));
-     counter := counter + 1
- }
+        if temp <= 18 {
+            state := On;
+        }
+        if temp >= 22 {
+            state := Off;
+        }
+        if state = On {
+            {temp'=K} dt + {temp' = 0.1} dW & temp <= 22;
+        } else {
+            {temp'=Ambient} dt + {temp' = 0.1} dW & temp >= 18;
+        }
+        counter := counter + 1;
+    }
 }
