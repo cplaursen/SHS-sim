@@ -3,17 +3,17 @@ module StochasticHybrid where
 
 import Data.Vector (Vector)
 import qualified Data.Vector as V
-import Data.Map ( Map, (!), (!?), fromList, insert )
+import Data.Map.Strict ( Map, (!), (!?), fromList, insert, keysSet )
 import Data.List (sortBy)
 import Data.Dynamic
 import Data.Maybe ( fromJust )
-import Data.Set ( Set )
+import Data.Set ( Set, isSubsetOf, (\\), toList )
 import Type.Reflection
 
 import Control.Monad.Writer.Lazy (runWriterT)
 
 import Control.Monad.Primitive (PrimState)
-import Control.Monad.RWS (RWST, ask, get, asks, tell, put, lift, when)
+import Control.Monad.RWS ( RWST, ask, get, asks, tell, put, lift, when, guard )
 
 import Lens.Micro.Platform
 
@@ -84,6 +84,11 @@ readAExpr :: Env -> Set String -> String -> Either String AExpr
 readAExpr env enums string = do
     parsed <- runAlex string parseExpr 
     let withEnums = replaceEnum enums parsed
+    let vars = allPExprVars withEnums
+    let diff = vars \\ keysSet env
+    if null diff
+       then Right ()
+       else Left $ "Unrecognised variable names: " ++ unwords (toList diff)
     typeCheckPExpr env withEnums
 
 runSHP :: SHP -> Execution IO ()
@@ -120,7 +125,7 @@ runSHP shp =
                     Refl <- testEqualityEither ("Incorrect type for variable " ++ v) typ eTyp
                     return (toDyn (evalExpr disc expr))
           case expression of
-            Left err -> lift (print err) >> runSHP shp
+            Left err -> lift (putStrLn err) >> runSHP shp
             Right expr -> store . at v ?= expr
       Choice prob n m -> do
           g <- asks gen

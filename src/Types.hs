@@ -69,7 +69,6 @@ data Expr a where
     EBool :: Bool -> Expr Bool
     Enum :: String -> Expr String
     EVar :: Var a -> Expr a
-    --Cont :: Int -> Expr Double
     Bop :: forall a b c. (Typeable a, Typeable b, Typeable c) =>
         BOperator a b c -> Expr a -> Expr b -> Expr c
     Uop :: forall a b. (Typeable a, Typeable b) =>
@@ -108,6 +107,7 @@ data SHPType a where
     SHPReal :: SHPType Double
     SHPBool :: SHPType Bool
     SHPEnum :: SHPType String
+    SHPInt  :: SHPType Int
 
 deriving instance Show (SHPType a)
 
@@ -133,9 +133,7 @@ toASHPType HPBool = ASHPType SHPBool
 -- Utility function to unwrap and rewrap the existentially quantified ASHPType
 unwrapASHPType :: (forall a. Typeable a => SHPType a -> b) -> ASHPType -> b
 unwrapASHPType f a = case a of
-                       ASHPType SHPReal -> f SHPReal
-                       ASHPType SHPBool -> f SHPBool
-                       ASHPType SHPEnum -> f SHPEnum
+                       ASHPType x -> f x
 
 instance Eq ASHPType where
     ASHPType t1 == ASHPType t2 =

@@ -1,6 +1,5 @@
 module Execution where
 
-import Euler_Maruyama
 import Data.Vector (Vector, singleton, (!))
 import qualified Data.Vector as V
 import System.Random.MWC (createSystemRandom, withSystemRandomST)

@@ -20,10 +20,17 @@ typeUOp :: String -> SHPType a -> Either String AUOp
 typeUOp op typ
   | op == "-" = case typ of
                   SHPReal -> Right (AUOp Neg SHPReal SHPReal)
+                  SHPInt  -> Right (AUOp Neg SHPInt SHPInt)
                   _ -> Left "Couldn't match type of (-) with argument"
   | op == "~" = case typ of
                   SHPBool -> Right (AUOp Not SHPBool SHPBool)
                   _ -> Left "Coudln't match type of (~) with argument"
+
+numericBOp :: SHPType a -> BOperator a a a -> Either String ABOp
+numericBOp typ op = case typ of
+                      SHPReal -> Right $ ABOp op SHPReal SHPReal SHPReal
+                      SHPInt -> Right $ ABOp op SHPInt SHPInt SHPInt
+                      _ -> Left "Wrong type"
 
 typeBOp :: String -> SHPType a -> SHPType b -> Either String ABOp
 typeBOp op arg1 arg2 = 
