@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-with open("temps.csv") as f:
+with open("temp.txt") as f:
     lines = f.read().strip().split('\n')
     data = []
     times = []
