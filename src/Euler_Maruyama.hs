@@ -51,6 +51,7 @@ eulerMaruyamaStep :: PrimMonad m
 eulerMaruyamaStep flow noise state t dt gen = do
       w_n <- dWiener dt (length state) gen
       return $ state ^+^ ((dt *^ flow state t) ^+^ (noise state t !* w_n))
+
 {-# INLINE eulerMaruyamaStep #-}
 
 eulerMaruyamaTrace :: PrimMonad m

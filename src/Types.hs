@@ -102,6 +102,11 @@ data SHP where
     SDE :: [Diff] -> [Diff] -> Expr Bool -> SHP
 
 deriving instance Show SHP
+
+data IsaSHP a where
+    IsaSHP :: SHP -> IsaSHP a
+
+deriving instance Show (IsaSHP a)
    
 data SHPType a where
     SHPReal :: SHPType Double

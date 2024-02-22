@@ -4,6 +4,8 @@ import ParsingTypes
 import Types
 import Data.Generics hiding ( typeRep, empty )
 import Data.Set ( Set, insert, empty, singleton, union, fromList )
+import System.Random.MWC ( Gen ) 
+import Control.Monad.Primitive ( PrimMonad(PrimState) )
 import Lens.Micro.Platform
 
 -----------------------------

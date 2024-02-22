@@ -19,6 +19,7 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     "Enums"   { L _ (TokenIdent "Enums")}
     "Constants" { L _ (TokenIdent "Constants")}
     "Variables" { L _ (TokenIdent "Variables") }
+    "Options" { L _ (TokenIdent "Options") }
     "real"   { L _ (TokenIdent "real") }
     "bool"   { L _ (TokenIdent "bool") }
     "int"    { L _ (TokenIdent "int") }
@@ -144,10 +145,10 @@ Expr :: { PExpr }
 Expr : real         { PReal $1 }
     | id            { PVar $1 }
     | bool          { PBool $1 }
+    | Expr "/" Expr { PBop "/" $1 $3 }
+    | Expr "*" Expr { PBop "*" $1 $3 }
     | Expr "+" Expr { PBop "+" $1 $3 }
     | Expr "-" Expr { PBop "-" $1 $3 }
-    | Expr "*" Expr { PBop "*" $1 $3 }
-    | Expr "/" Expr { PBop "/" $1 $3 }
     | "-" Expr %prec NEG { PUop "-" $2 }
     | Expr "=" Expr  { PBop "=" $1 $3 }
     | Expr ">" Expr  { PBop ">" $1 $3 }

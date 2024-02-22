@@ -90,6 +90,7 @@ runProgram opt = do
                 Right (env, enums, typechecked) -> do
                     seed <- createSystemRandom
                     (_, _, trace) <- runRWST (runSHP typechecked) (Config 200 0.01 seed env enums) (State Data.Map.empty 0)
+                    -- our trace is a difference list of type Endo [Vector Double], we use appEndo to obtain a [Vector Double]
                     outputF $ unlines $ map (unwords . map show . V.toList) $ appEndo trace []
             
 runCLI :: IO ()

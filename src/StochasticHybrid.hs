@@ -13,7 +13,7 @@ import Type.Reflection
 import Control.Monad.Writer.Lazy (runWriterT)
 
 import Control.Monad.Primitive (PrimState)
-import Control.Monad.RWS ( RWST, ask, get, asks, tell, put, lift, when, guard )
+import Control.Monad.RWS ( ask, get, asks, tell, put, lift, when, guard )
 
 import Lens.Micro.Platform
 
