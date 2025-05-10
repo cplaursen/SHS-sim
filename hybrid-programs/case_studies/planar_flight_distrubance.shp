@@ -1,0 +1,27 @@
+Constants {
+  v_own = 1; // Own velocity
+  v_int = 1; // Intruder velocity
+  delta = 0.1; // Disturbance
+}
+
+Enums { Straight, Turn }
+
+Variables {
+    real x;
+    real y;
+    real theta;
+    real w;
+}
+
+SHP {
+    // ctrl
+    x := {0,5};
+    y := {0,5};
+    theta := {0,3};
+    if (v_int * sin(theta) * x - (v_int * cos(theta) - v_own) * y > v_own + v_int) {
+        w := 0;
+    } else {
+        w := 1;
+    }
+    {x' = v_int * cos(theta) - v_own + w*y, y' = v_int * sin(theta) - w*x, theta' = w, w' = 0} dt + {x'=0, y'=0, theta'=0, w'=0} dW & true;
+}

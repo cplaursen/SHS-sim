@@ -1,5 +1,5 @@
 Constants {
-    K = 3;
+    K = 0.3;
     Ambient = -0.1;
 }
 
@@ -16,10 +16,10 @@ SHP {
     temp := 20;
     state := On;
     while (counter < 10) {
-        if temp <= 18 {
+        if temp < 19 {
             state := On;
         }
-        if temp >= 22 {
+        if temp > 21 {
             state := Off;
         }
         if state = On {

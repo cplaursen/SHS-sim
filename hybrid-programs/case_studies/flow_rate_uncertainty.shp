@@ -1,0 +1,24 @@
+Constants {
+    epsilon = 1;
+    m = 5;
+    U = 0.1;
+}
+
+Variables {
+    real f, l, lu, c, c_old;
+    real i;
+}
+
+SHP {
+    l := {0, m};
+    i := 0;
+    c := 0;
+    while (i < 10) {
+        lu := {l-U, l+U};
+        f := {-1, m - (lu + U) / epsilon};
+        c_old := c;
+
+        { l' = f, c' = 1 } dt + {l' = 0.1, c'=0} dW & 0 <= l /\ c <= c_old + epsilon;
+        i := i + 1;
+    }
+}

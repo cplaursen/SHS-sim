@@ -1,0 +1,11 @@
+Variables {
+    real x, up, down;
+}
+
+SHP {
+x := 0;
+up := {x, 5};
+down := {up - 5, up};
+{x' = 1} dt & x < up;
+{x' = -1} dt & x > down;
+}

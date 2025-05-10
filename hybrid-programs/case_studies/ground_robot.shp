@@ -1,0 +1,18 @@
+Variables {
+    real xr, yr, xo, yo, w, v, a;
+}
+
+SHP {
+    xr := {0, 10};
+    yr := {0, 10};
+    xo := {0, 10};
+    yo := {0, 10};
+    v := {0,1};
+    w := {0,1};
+    if ((xr+w/-1-xo)*(xr+w/-1-xo)+(yr-v/-1-yo)*(yr-v/-1-yo)!=v*v+w*w) {
+        a := -1;
+    } else {
+        a := 1;
+    }
+    { xr' = v, yr'=w, v'=a*w, w'=-a*v } dt + {xr'=0, yr'=0, v'=0, w'=0} dW & true;
+}
