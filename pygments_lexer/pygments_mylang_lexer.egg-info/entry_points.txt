@@ -1,0 +1,2 @@
+[pygments.lexers]
+mylang = my_language_lexer:MyLanguageLexer

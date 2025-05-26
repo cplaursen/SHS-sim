@@ -1,0 +1,7 @@
+setup.py
+shs_lexer.py
+pygments_shs_lexer.egg-info/PKG-INFO
+pygments_shs_lexer.egg-info/SOURCES.txt
+pygments_shs_lexer.egg-info/dependency_links.txt
+pygments_shs_lexer.egg-info/entry_points.txt
+pygments_shs_lexer.egg-info/top_level.txt
