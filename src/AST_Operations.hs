@@ -52,5 +52,7 @@ replaceEnum enums = everywhere (mkT helper)
         helper x = x
 
 evalBlocks :: Blocks -> PSHP
-evalBlocks block = replaceDefs (block ^. constBlock) $ replaceEnum (fromList (block ^. enumBlock)) (block ^. shpBlock)
+evalBlocks block = replaceDefs (block ^. constBlock) enumsReplaced
     where replaceDefs defs value = foldr substDef value defs
+          enumsReplaced = replaceEnum (fromList (block ^. enumBlock)) (block ^. shpBlock)
+

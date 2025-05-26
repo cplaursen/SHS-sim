@@ -33,6 +33,7 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     then     { L _ TokenThen }
     else     { L _ TokenElse }
     while    { L _ TokenWhile }
+    loop     { L _ TokenLoop }
     choice   { L _ TokenChoice }
     id       { L _ (TokenIdent $$) }
     "("      { L _ TokenLParen }
@@ -50,9 +51,12 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     "?"      { L _ TokenQuestion }
     or       { L _ TokenOr }
     and      { L _ TokenAnd }
+    sin      { L _ TokenSin }
+    cos      { L _ TokenCos }
     "~"      { L _ TokenNot }
     "+"      { L _ TokenPlus }
     "-"      { L _ TokenMinus }
+    "^"      { L _ TokenPow }
     ">"      { L _ TokenGT }
     "<"      { L _ TokenLT }
     ">="     { L _ TokenGEQ }
@@ -60,13 +64,15 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     "="      { L _ TokenEq }
     "/"      { L _ TokenDiv }
 
-%nonassoc "<" ">" "<=" ">=" ":=" "="
-
 %left or
 %left and
+
+%nonassoc "<" ">" "<=" ">=" ":=" "=" "^"
+
 %left "+" "-"
 %left "*" "/"
 %left NEG
+
 
 %%
 
@@ -90,13 +96,14 @@ Ids :: { [String] }
 Ids : id { [$1] }
     | Ids "," id { $3 : $1 }
 
-Vars :: { [(String, PSHPType, Maybe PExpr)] }
+Vars :: { [Either ([String], PSHPType) (String, PSHPType, PExpr)] }
 Vars : {- Empty -} { [] }
      |  Vars Var { $2 : $1 }
 
-Var :: { (String, PSHPType, Maybe PExpr) }
-Var : Typedecl id "=" Expr ";" { ($2, $1, Just $4) }
-    | Typedecl id ";" { ($2, $1, Nothing) }
+Var :: { Either ([String], PSHPType) (String, PSHPType, PExpr) }
+Var : Typedecl id "=" Expr ";" { Right ($2, $1, $4) }
+    | Typedecl id ";" { Left ([$2], $1) }
+    | Typedecl Ids ";" { Left ($2, $1) }
 
 Typedecl :: { PSHPType }
 Typedecl : "real" { HPReal }
@@ -116,6 +123,7 @@ SHPLine : {- Empty -} { PSkip }
     | if Expr "{" SHPLines "}" { PCond $2 (linesToSHP $4) PSkip }
     | "?" Expr ";" { PCond $2 PSkip PAbort }
     | while Expr "{" SHPLines "}" { PWhile $2 (linesToSHP $4) }
+    | loop "{" SHPLines "}" { PLoop (linesToSHP $3) }
     | id ":=" "{" Expr "," Expr "}" ";" { PRandAssn $1 $4 $6 }
     | id ":=" Expr ";" { PAssn $1 $3 }
     | input id ";" { PInput $2 }
@@ -145,6 +153,9 @@ Expr :: { PExpr }
 Expr : real         { PReal $1 }
     | id            { PVar $1 }
     | bool          { PBool $1 }
+    | sin "(" Expr ")" { PUop "sin" $3 }
+    | cos "(" Expr ")" { PUop "cos" $3 }
+    | Expr "^" Expr { PBop "^" $1 $3 }
     | Expr "/" Expr { PBop "/" $1 $3 }
     | Expr "*" Expr { PBop "*" $1 $3 }
     | Expr "+" Expr { PBop "+" $1 $3 }
@@ -169,7 +180,7 @@ linesToSHP (x:[]) = x
 linesToSHP (x:xs) = PComp (linesToSHP xs) x
 
 parseError :: Lexeme -> Alex a
-parseError _ = alexError "Parse error"
+parseError (L (AlexPn _ line col) tok) = alexError $ "Parse error at line " ++ (show line) ++ ", column " ++ (show col) ++ ": unexpected token " ++ show tok
 
 emptyBlock :: Blocks
 emptyBlock = Blocks PSkip [] [] []

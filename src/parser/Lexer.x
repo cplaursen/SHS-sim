@@ -21,9 +21,12 @@ tokens :-
     then                { mkL TokenThen }
     else                { mkL TokenElse } 
     while               { mkL TokenWhile }
+    loop                { mkL TokenLoop }
     choice              { mkL TokenChoice }
     true                { mkL $ TokenBool True }
     false               { mkL $ TokenBool False }
+    sin                 { mkL TokenSin }
+    cos                 { mkL TokenCos }
     :=                  { mkL TokenAssign } 
     \\\/                { mkL TokenOr }
     \/\\                { mkL TokenAnd }
@@ -36,6 +39,7 @@ tokens :-
     \+                  { mkL TokenPlus }
     \-                  { mkL TokenMinus }
     \/                  { mkL TokenDiv }
+    \^                  { mkL TokenPow }
     \(                  { mkL TokenLParen }
     \)                  { mkL TokenRParen }
     \{                  { mkL TokenLCurl } 
@@ -53,8 +57,23 @@ tokens :-
 data Lexeme = L AlexPosn Token
     deriving (Eq, Show)
 
+-- newtype Alex a = Alex { unAlex :: AlexState -> Either String (AlexState, a) }
+-- data AlexState = AlexState {
+--        alex_pos :: !AlexPosn,  -- position at current input location
+--        alex_inp :: String,     -- the current input
+--        alex_chr :: !Char,      -- the character before the input
+--        alex_bytes :: [Byte],
+--        alex_scd :: !Int        -- the current startcode
+--    }
+
+-- type AlexAction = AlexInput -> Int -> Alex result
+-- type AlexInput = (AlexPosn,     -- current position,
+--                   Char,         -- previous char
+--                   [Byte],       -- pending bytes on current char
+--                   String)       -- current input string
+
 mkL :: Token -> AlexAction Lexeme
-mkL t (p, _, _, str) len = return (L p t)
+mkL t (p, _, _, _) len = return (L p t)
 
 mkL_input :: (String -> Token) -> AlexAction Lexeme
 mkL_input t (p, _, _, str) len = return (L p (t (take len str)))

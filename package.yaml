@@ -27,7 +27,6 @@ dependencies:
   - vector
   - linear
   - mwc-random
-  - matplotlib
   - mtl
   - array
   - unordered-containers
@@ -35,7 +34,11 @@ dependencies:
   - primitive
   - microlens-platform
   - syb
+  - monad-parallel
+
+  # Command line options
   - optparse-applicative
+
 
 library: 
   source-dirs: 
@@ -53,6 +56,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O2
     dependencies:
     - stochastic-hybrid-sim
 

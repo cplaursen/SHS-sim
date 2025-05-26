@@ -1,12 +1,14 @@
 {-# LANGUAGE TemplateHaskell, GADTs, StandaloneDeriving #-}
 module Types where
 
-import Data.Map.Strict (Map)
-import Data.Vector (Vector)
+import Data.Map.Strict ( Map )
+import Data.Vector.Unboxed (Vector)
 import Data.Set ( Set )
+import Data.Semigroup ( Min, Max )
 
 import Data.Dynamic
 import Data.Type.Equality
+import Data.Kind
 
 import System.Random.MWC (Gen)
 
@@ -14,105 +16,22 @@ import Lens.Micro.Platform
 
 import Control.Monad.RWS ( RWST, Endo )
 import Control.Monad.Primitive
+import Data.Primitive.MutVar
 
 import ParsingTypes
 
-{--------------------------------------------
--- Elements of a stochastic hybrid program --
----------------------------------------------}
-data Var a where
-    Var :: Typeable a => String -> SHPType a -> Var a
+{---------------------------
+-- Type universe for SHPs --
+----------------------------}
 
-deriving instance Show (Var a)
-
-type Enumeration = String
-
--- Expressions
-data BOperator a b c where
-    Plus :: forall a. Num a => BOperator a a a
-    Minus :: forall a. Num a => BOperator a a a
-    Times :: forall a. Num a => BOperator a a a
-    Divide :: forall a. Fractional a => BOperator a a a
-
-    Eq :: forall a. Eq a => BOperator a a Bool
-    Leq :: forall a. Ord a => BOperator a a Bool
-    Le :: forall a. Ord a => BOperator a a Bool
-    Geq :: forall a. Ord a => BOperator a a Bool
-    Ge :: forall a. Ord a => BOperator a a Bool
-
-deriving instance Show (BOperator a b c)
-
-evalBOperator :: BOperator a b c -> a -> b -> c
-evalBOperator b = case b of
-                    Plus -> (+)
-                    Minus -> (-)
-                    Times -> (*)
-                    Divide -> (/)
-                    Eq -> (==)
-                    Leq -> (<=)
-                    Le -> (<)
-                    Geq -> (>=)
-                    Ge -> (>)
-
-data UOperator a b where
-    Neg :: forall a. Num a => UOperator a a
-    Not :: UOperator Bool Bool
-
-evalUOperator :: UOperator a b -> a -> b
-evalUOperator Neg = negate
-evalUOperator Not = not
-
-deriving instance Show (UOperator a b)
-
-data Expr a where
-    Real :: Double -> Expr Double
-    EBool :: Bool -> Expr Bool
-    Enum :: String -> Expr String
-    EVar :: Var a -> Expr a
-    Bop :: forall a b c. (Typeable a, Typeable b, Typeable c) =>
-        BOperator a b c -> Expr a -> Expr b -> Expr c
-    Uop :: forall a b. (Typeable a, Typeable b) =>
-        UOperator a b -> Expr a -> Expr b
-
-deriving instance Show (Expr a)
-
--- State
-type Store = Map String Dynamic
---
--- Single differential equality - an ODE is a list of these
-data Diff = Diff (Var Double) (Expr Double)
- deriving Show
-
--- SHP execution
-type Flow = Vector Double -> Double -> Vector Double
-type Noise = Vector Double -> Double -> Vector (Vector Double)
-
--- Holds a stochastic hybrid program
-data SHP where
-    Assn :: forall a. Var a -> Expr a -> SHP
-    RandAssn :: Var Double -> Expr Double -> Expr Double -> SHP -- Uniform distribution [fst..snd]
-    Input :: forall a. Var a -> SHP
-    Choice :: Expr Double -> SHP -> SHP -> SHP
-    Composition :: SHP -> SHP -> SHP
-    While :: Expr Bool -> SHP -> SHP
-    Abort :: SHP
-    Skip :: SHP
-    Cond :: Expr Bool -> SHP -> SHP -> SHP
-    -- Can store SDEs as a single term to ensure the two lists refer to the same variables
-    SDE :: [Diff] -> [Diff] -> Expr Bool -> SHP
-
-deriving instance Show SHP
-
-data IsaSHP a where
-    IsaSHP :: SHP -> IsaSHP a
-
-deriving instance Show (IsaSHP a)
-   
 data SHPType a where
     SHPReal :: SHPType Double
     SHPBool :: SHPType Bool
     SHPEnum :: SHPType String
     SHPInt  :: SHPType Int
+    (:->)  :: forall arg res. Typeable res =>
+        SHPType arg -> SHPType res -> SHPType (arg -> res)
+infixr 0 :->
 
 deriving instance Show (SHPType a)
 
@@ -121,17 +40,19 @@ instance TestEquality SHPType where
     testEquality SHPReal SHPReal = Just Refl
     testEquality SHPBool SHPBool = Just Refl
     testEquality SHPEnum SHPEnum = Just Refl
+    testEquality (a :-> b) (c :-> d) = do
+        Refl <- testEquality a c
+        Refl <- testEquality b d
+        return Refl
     testEquality _       _       = Nothing
 
-{---------------------------------------
--- Existential types for typechecking --
----------------------------------------}
-
+-- Existential for SHPType lets us hide the type information to e.g. store it in a map
 data ASHPType = forall a. Typeable a => ASHPType (SHPType a)
 deriving instance Show ASHPType
 
 toASHPType :: PSHPType -> ASHPType
 toASHPType HPReal = ASHPType SHPReal
+toASHPType HPInt  = ASHPType SHPInt
 toASHPType HPEnum = ASHPType SHPEnum
 toASHPType HPBool = ASHPType SHPBool
 
@@ -146,21 +67,120 @@ instance Eq ASHPType where
           Just Refl -> True
           Nothing -> False
 
--- Our type universe is given by SHPTypes
-type Env = Map String ASHPType
+{--------------------------------------------
+-- Elements of a stochastic hybrid program --
+---------------------------------------------}
 
--- Hide away the type 
-data AExpr = forall a. Typeable a => Expr a ::: SHPType a
+-- Variables are strings that carry their type with them
+data Var a where
+    Var :: Typeable a => String -> SHPType a -> Var a
+
+deriving instance Show (Var a)
+
+-- BOperator is a dictionary of sorts for our allowed binary operators
+data BOperator a b c where
+    Plus :: forall a. Num a => BOperator a a a
+    Minus :: forall a. Num a => BOperator a a a
+    Times :: forall a. Num a => BOperator a a a
+    Divide :: forall a. Fractional a => BOperator a a a
+    Power :: forall a. Integral a => BOperator a a a
+
+    Eq :: forall a. Eq a => BOperator a a Bool
+    Leq :: forall a. Ord a => BOperator a a Bool
+    Le :: forall a. Ord a => BOperator a a Bool
+    Geq :: forall a. Ord a => BOperator a a Bool
+    Ge :: forall a. Ord a => BOperator a a Bool
+
+    And :: BOperator Bool Bool Bool
+    Or :: BOperator Bool Bool Bool
+
+deriving instance Show (BOperator a b c)
+
+evalBOperator :: BOperator a b c -> a -> b -> c
+evalBOperator b = case b of
+                    Plus -> (+)
+                    Minus -> (-)
+                    Times -> (*)
+                    Divide -> (/)
+                    Power -> (^)
+                    Eq -> (==)
+                    Leq -> (<=)
+                    Le -> (<)
+                    Geq -> (>=)
+                    Ge -> (>)
+                    And -> (&&)
+                    Or -> (||)
+
+data ABOp = forall a b c. (Typeable a, Typeable b, Typeable c) =>
+    ABOp (BOperator a b c) (SHPType a) (SHPType b) (SHPType c)
+
+data UOperator a b where
+    Neg :: forall a. Num a => UOperator a a
+    Not :: UOperator Bool Bool
+    Sin :: UOperator Double Double
+    Cos :: UOperator Double Double
+
+deriving instance Show (UOperator a b)
+
+evalUOperator :: UOperator a b -> a -> b
+evalUOperator Neg = negate
+evalUOperator Not = not
+evalUOperator Sin = sin
+evalUOperator Cos = cos
 
 data AUOp = forall a b. (Typeable a, Typeable b) =>
     AUOp (UOperator a b) (SHPType a) (SHPType b)
 
-data ABOp = forall a b c.
-    (Typeable a, Typeable b, Typeable c) => ABOp (BOperator a b c) (SHPType a) (SHPType b) (SHPType c)
+data Expr a where
+    EReal :: Double -> Expr Double
+    EBool :: Bool -> Expr Bool
+    EEnum :: String -> Expr String
+    EVar :: Var a -> Expr a
+    EApp :: forall a b. (Typeable a, Typeable b) =>
+        Expr (a -> b) -> Expr a -> Expr b
+    EBop :: forall a b c. (Typeable a, Typeable b, Typeable c) =>
+        BOperator a b c -> Expr (a -> b -> c)
+    EUop :: forall a b. (Typeable a, Typeable b) =>
+        UOperator a b -> Expr (a -> b)
 
-{------------------------
--- Types for execution --
-------------------------}
+deriving instance Show (Expr a)
+
+data AExpr = forall a. Typeable a => Expr a ::: SHPType a
+
+-- State
+type Store = Map String Dynamic
+--
+-- Single differential equality - an ODE is a list of these
+data Diff = Diff (Var Double) (Expr Double)
+    deriving Show
+
+-- SHP execution
+type Flow = Vector Double -> Double -> Vector Double
+type Noise = Vector Double -> Double -> Vector (Vector Double)
+
+-- Holds a stochastic hybrid program
+data SHP where
+    Assn :: forall a. Var a -> Expr a -> SHP
+    RandAssn :: Var Double -> Expr Double -> Expr Double -> SHP -- Uniform distribution [fst..snd]
+    Input :: forall a. Var a -> SHP
+    Choice :: Expr Double -> SHP -> SHP -> SHP
+    Composition :: SHP -> SHP -> SHP
+    While :: Expr Bool -> SHP -> SHP
+    Loop :: SHP -> SHP
+    Abort :: SHP
+    Skip :: SHP
+    Cond :: Expr Bool -> SHP -> SHP -> SHP
+    -- Can store SDEs as a single term to ensure the two lists refer to the same variables
+    SDE :: [Diff] -> [Diff] -> Expr Bool -> SHP
+
+deriving instance Show SHP 
+
+-- Our type universe is given by SHPTypes
+type Env = Map String ASHPType
+
+{--------------
+-- Execution --
+---------------}
 
 data Config m = Config
     { maxTime :: Double
@@ -178,4 +198,7 @@ data State = State
 
 makeLenses ''State
 
-type Execution m a = PrimMonad m => RWST (Config m) (Endo [Vector Double]) State m a
+-- Options for w are Endo [Vector Double] to store the whole trace,
+-- Max Double to record the highest value of a function, resp. Min Double,
+type Execution m w a = (PrimMonad m, Monoid w) =>
+    RWST (Config m) w State m a

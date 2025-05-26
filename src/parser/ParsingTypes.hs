@@ -21,6 +21,7 @@ data Token = TokenIdent String
            | TokenThen 
            | TokenElse  
            | TokenWhile
+           | TokenLoop
            | TokenChoice
            | TokenSHP
            | TokenPrime
@@ -35,6 +36,8 @@ data Token = TokenIdent String
            | TokenOr
            | TokenAnd
            | TokenNot
+           | TokenSin
+           | TokenCos
            | TokenLEQ
            | TokenGEQ
            | TokenLT
@@ -43,6 +46,7 @@ data Token = TokenIdent String
            | TokenPlus
            | TokenMinus
            | TokenDiv
+           | TokenPow
            | TokenEOF
            deriving (Show, Eq)
 
@@ -63,6 +67,7 @@ data PSHP = PAssn Variable PExpr
           | PChoice PExpr PSHP PSHP
           | PComp PSHP PSHP
           | PWhile PExpr PSHP
+          | PLoop PSHP
           | PAbort
           | PSkip
           | PCond PExpr PSHP PSHP
@@ -85,7 +90,7 @@ data Blocks = Blocks
     { _shpBlock :: PSHP
     , _constBlock :: [Def]
     , _enumBlock :: [String]
-    , _varsBlock :: [(Variable, PSHPType, Maybe PExpr)]
+    , _varsBlock :: [Either ([Variable], PSHPType) (Variable, PSHPType, PExpr)]
     }
     deriving (Show, Eq)
 
