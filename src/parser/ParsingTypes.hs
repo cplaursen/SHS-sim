@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, GADTs, RankNTypes, DeriveDataTypeable, DeriveFunctor #-}
+{-# LANGUAGE TemplateHaskell, GADTs, RankNTypes, DeriveFunctor #-}
 module ParsingTypes where
 
 import Data.Vector ( Vector )
