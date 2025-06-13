@@ -3,3 +3,5 @@
 *.dyn_*
 *.lock
 *.cabal
+tags
+scripts/

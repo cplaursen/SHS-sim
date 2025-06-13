@@ -26,15 +26,11 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     "enum"   { L _ (TokenIdent "enum") }
     dW       { L _ TokenDW }
     dt       { L _ TokenDT }
-    skip     { L _ TokenSkip }
-    abort    { L _ TokenAbort }
     input    { L _ TokenInput }
     if       { L _ TokenIf }
     then     { L _ TokenThen }
     else     { L _ TokenElse }
     while    { L _ TokenWhile }
-    loop     { L _ TokenLoop }
-    choice   { L _ TokenChoice }
     id       { L _ (TokenIdent $$) }
     "("      { L _ TokenLParen }
     ")"      { L _ TokenRParen }
@@ -118,17 +114,12 @@ SHPLines : SHPLine { [$1] }
 SHPLine :: { PSHP }
 SHPLine : {- Empty -} { PSkip }
        -- Maybe add an Expr field to control probability
-    | choice "{" SHPLines "}" "{" SHPLines "}" { PChoice (PReal 0.5) (linesToSHP $3) (linesToSHP $6) }
     | if Expr "{" SHPLines "}" else "{" SHPLines "}" { PCond $2 (linesToSHP $4) (linesToSHP $8) }
     | if Expr "{" SHPLines "}" { PCond $2 (linesToSHP $4) PSkip }
-    | "?" Expr ";" { PCond $2 PSkip PAbort }
     | while Expr "{" SHPLines "}" { PWhile $2 (linesToSHP $4) }
-    | loop "{" SHPLines "}" { PLoop (linesToSHP $3) }
     | id ":=" "{" Expr "," Expr "}" ";" { PRandAssn $1 $4 $6 }
     | id ":=" Expr ";" { PAssn $1 $3 }
     | input id ";" { PInput $2 }
-    | abort ";" { PAbort }
-    | skip ";" { PSkip }
     | SDE ";" { $1 }
 
 SDE :: { PSHP }

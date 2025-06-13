@@ -14,7 +14,6 @@ tokens :-
     "//".*              { skip }
     dW                  { mkL TokenDW     }
     dt                  { mkL TokenDT     }
-    abort               { mkL TokenAbort } 
     skip                { mkL TokenSkip } 
     input               { mkL TokenInput } 
     if                  { mkL TokenIf }
