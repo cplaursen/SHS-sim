@@ -5,6 +5,7 @@
 module Typecheck where
 
 import Control.Monad
+import Data.Coerce (coerce)
 import Data.Map (Map, (!), (!?))
 import Data.String.Interpolate
 import Data.Type.Equality
@@ -24,7 +25,6 @@ typeUOp :: String -> SHPType a -> Either String AExpr
 typeUOp op typ
   | op == "-" = case typ of
       SHPReal -> Right (EUop Neg ::: (SHPReal :-> SHPReal))
-      SHPInt -> Right (EUop Neg ::: (SHPInt :-> SHPInt))
       _ -> Left "Couldn't match type of (-) with argument"
   | op == "~" = case typ of
       SHPBool -> Right (EUop Not ::: (SHPBool :-> SHPBool))
@@ -141,6 +141,9 @@ typecheckPSHP env shp =
       exp_typed ::: SHPBool <- typecheckPExpr env exp
       prog_typed <- typecheckPSHP env prog
       return $ While exp_typed prog_typed
+    PLoop prog -> do
+      prog_typed <- typecheckPSHP env prog
+      return $ Loop prog_typed
     PSkip -> Right Skip
     PCond exp left right -> do
       exp_typed ::: SHPBool <- typecheckPExpr env exp

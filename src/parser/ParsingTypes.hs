@@ -16,6 +16,7 @@ data Token
   | TokenLParen
   | TokenRParen
   | TokenReal Double
+  | TokenInt Int
   | TokenBool Bool
   | TokenDW
   | TokenDT
@@ -72,6 +73,7 @@ data PSHP
   | PInput Variable
   | PComp PSHP PSHP
   | PWhile PExpr PSHP
+  | PLoop PSHP
   | PCond PExpr PSHP PSHP
   | PSkip
   | PSDE [PDiff] [PDiff] PExpr
@@ -85,7 +87,7 @@ data PDiff = PDiff Variable PExpr
 data Def = Def Variable PExpr
   deriving (Show, Eq, Data)
 
-data PSHPType = HPReal | HPBool | HPInt | HPEnum
+data PSHPType = HPReal | HPBool | HPEnum
   deriving (Show, Eq, Data)
 
 -- Holds an SHP, together with any meta-information about it: constants, symbols and variables

@@ -49,7 +49,7 @@ tokens :-
     \*                  { mkL TokenStar } 
     \?                  { mkL TokenQuestion }
     '                   { mkL TokenPrime }
-    $digit+(\.$digit+)? { mkL_input (TokenReal . read) }
+    $digit+\.?$digit*   { mkL_input (TokenReal . read) }
     @id                 { mkL_input TokenIdent }
 {
 

@@ -22,7 +22,6 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     "Options" { L _ (TokenIdent "Options") }
     "real"   { L _ (TokenIdent "real") }
     "bool"   { L _ (TokenIdent "bool") }
-    "int"    { L _ (TokenIdent "int") }
     "enum"   { L _ (TokenIdent "enum") }
     dW       { L _ TokenDW }
     dt       { L _ TokenDT }
@@ -31,6 +30,7 @@ import Lens.Micro.Platform ((&), (%~), (.~))
     then     { L _ TokenThen }
     else     { L _ TokenElse }
     while    { L _ TokenWhile }
+    loop     { L _ TokenLoop }
     id       { L _ (TokenIdent $$) }
     "("      { L _ TokenLParen }
     ")"      { L _ TokenRParen }
@@ -104,7 +104,6 @@ Var : Typedecl id "=" Expr ";" { Right ($2, $1, $4) }
 Typedecl :: { PSHPType }
 Typedecl : "real" { HPReal }
          | "bool" { HPBool }
-         | "int"  { HPInt }
          | "enum" { HPEnum }
 
 SHPLines :: { [PSHP] }
@@ -117,6 +116,7 @@ SHPLine : {- Empty -} { PSkip }
     | if Expr "{" SHPLines "}" else "{" SHPLines "}" { PCond $2 (linesToSHP $4) (linesToSHP $8) }
     | if Expr "{" SHPLines "}" { PCond $2 (linesToSHP $4) PSkip }
     | while Expr "{" SHPLines "}" { PWhile $2 (linesToSHP $4) }
+    | loop "{" SHPLines "}" { PLoop (linesToSHP $3) }
     | id ":=" "{" Expr "," Expr "}" ";" { PRandAssn $1 $4 $6 }
     | id ":=" Expr ";" { PAssn $1 $3 }
     | input id ";" { PInput $2 }
@@ -175,6 +175,7 @@ parseError (L (AlexPn _ line col) tok) = alexError $ "Parse error at line " ++ (
 
 emptyBlock :: Blocks
 emptyBlock = Blocks PSkip [] [] []
+
 
 main = do
     s <- getContents

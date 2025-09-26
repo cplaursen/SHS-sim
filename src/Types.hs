@@ -1,11 +1,12 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Types where
 
 import Data.Map.Strict (Map)
-import Data.Semigroup (Max, Min)
+import Data.Semigroup (All, Any, Max, Min)
 import Data.Set (Set)
 import Data.Vector.Unboxed (Vector)
 
@@ -18,9 +19,11 @@ import System.Random.MWC (Gen)
 import Lens.Micro.Platform
 
 import Control.Monad.Primitive
-import Control.Monad.RWS (Endo, RWST)
+import Control.Monad.RWS (Endo (Endo), RWS, RWST)
 import Data.Primitive.MutVar
 
+import GHC.Float (int2Double)
+import Options.Applicative.Help (double)
 import ParsingTypes
 
 {---------------------------
@@ -31,7 +34,6 @@ data SHPType a where
   SHPReal :: SHPType Double
   SHPBool :: SHPType Bool
   SHPEnum :: SHPType String
-  SHPInt :: SHPType Int
   (:->) ::
     forall arg res.
     (Typeable res) =>
@@ -59,7 +61,6 @@ deriving instance Show ASHPType
 
 toASHPType :: PSHPType -> ASHPType
 toASHPType HPReal = ASHPType SHPReal
-toASHPType HPInt = ASHPType SHPInt
 toASHPType HPEnum = ASHPType SHPEnum
 toASHPType HPBool = ASHPType SHPBool
 
@@ -90,7 +91,7 @@ data BOperator a b c where
   Minus :: forall a. (Num a) => BOperator a a a
   Times :: forall a. (Num a) => BOperator a a a
   Divide :: forall a. (Fractional a) => BOperator a a a
-  Power :: forall a. (Integral a) => BOperator a a a
+  Power :: forall a b. (Num a, Integral b) => BOperator a b a
   Eq :: forall a. (Eq a) => BOperator a a Bool
   Leq :: forall a. (Ord a) => BOperator a a Bool
   Le :: forall a. (Ord a) => BOperator a a Bool
@@ -184,6 +185,7 @@ data SHP where
   Input :: forall a. Var a -> SHP
   Composition :: SHP -> SHP -> SHP
   While :: Expr Bool -> SHP -> SHP
+  Loop :: SHP -> SHP
   Skip :: SHP
   Cond :: Expr Bool -> SHP -> SHP -> SHP
   -- Can store SDEs as a single term to ensure the two lists refer to the same variables
@@ -197,13 +199,24 @@ type Env = Map String ASHPType
 {--------------
 -- Execution --
 ---------------}
+data TracingMode w where
+  RawTrace :: TracingMode (Endo [Vector Double])
+  FullTrace :: Expr Double -> TracingMode (Endo [Double])
+  MinTrace :: Expr Double -> TracingMode (Maybe (Min Double))
+  MaxTrace :: Expr Double -> TracingMode (Maybe (Max Double))
+  AnyTrace :: Expr Bool -> TracingMode Any
+  AllTrace :: Expr Bool -> TracingMode All
+  NoTrace :: TracingMode ()
 
-data Config m = Config
+data SomeTracingMode = forall a. (Monoid a) => SomeTracingMode (TracingMode a)
+
+data Config m w = Config
   { maxTime :: Double
   , dt :: Double
   , gen :: Gen (PrimState m)
   , types :: Env
   , enums :: Set String
+  , tracingMode :: TracingMode w
   }
 
 data State = State
@@ -218,4 +231,6 @@ makeLenses ''State
 -- Max Double to record the highest value of a function, resp. Min Double,
 type Execution m w a =
   (PrimMonad m, Monoid w) =>
-  RWST (Config m) w State m a
+  RWST (Config m w) w State m a
+
+type Trace m w = Vector Double -> Execution m w ()

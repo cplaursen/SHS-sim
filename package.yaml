@@ -36,9 +36,7 @@ dependencies:
   - syb
   - monad-parallel
   - interpolate
-
-  # Command line options
-  - optparse-applicative
+  - optparse-applicative # Command line options
 
 library:
   source-dirs:
@@ -57,6 +55,7 @@ executables:
       - -rtsopts
       - -with-rtsopts=-N
       - -O2
+      - -fllvm
     dependencies:
       - stochastic-hybrid-sim
 

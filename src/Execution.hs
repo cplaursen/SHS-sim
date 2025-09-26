@@ -35,7 +35,7 @@ import Data.HashMap.Internal.Strict qualified as M
 import Tracing
 import Typecheck (testEqualityEither)
 
-inputUser :: String -> SHPType a -> Config IO -> IO (Expr a)
+inputUser :: String -> SHPType a -> Config IO w -> IO (Expr a)
 inputUser v typ config = do
   hPutStrLn stderr $ "Input expression for variable " ++ v
   response <- getLine
@@ -47,25 +47,27 @@ inputUser v typ config = do
     Left err -> inputUser v typ config
     Right expr -> return expr
 
-inputStream :: String -> SHPType a -> Config (ST s) -> ST s (Expr a)
+inputStream :: String -> SHPType a -> Config (ST s) w -> ST s (Expr a)
 inputStream = undefined
 
 runSHP ::
-  TracingMode w ->
-  (forall a. String -> SHPType a -> Config m -> m (Expr a)) ->
+  (forall a. String -> SHPType a -> Config m w -> m (Expr a)) ->
   SHP ->
   Execution m w ()
-runSHP traceMode inputFun shp =
+runSHP inputFun shp =
   case shp of
     SDE drift noise boundary -> do
       state <- use store
       let flowVars = map getDiffVar drift
       let flowVarMap = fromList $ zip flowVars [0 ..]
-      let eval = evalExprVector state flowVarMap :: Expr a -> Vector Double -> a
-      let flowF v t = V.fromList $ map (flip eval v . getDiffExpr) drift
-      let noiseF v t = V.fromList $ map (flip eval v . getDiffExpr) noise
-      let evalBoundary t = evalExprVector state flowVarMap boundary
-      new_state <- eulerMaruyamaTraceDiag (runTrace traceMode flowVarMap) flowF noiseF evalBoundary (storeToVec flowVars state)
+
+      let
+        eval :: Expr a -> Vector Double -> a
+        eval = evalExprVector state flowVarMap
+        flowF v t = V.fromList $ map (flip eval v . getDiffExpr) drift
+        noiseF v t = V.fromList $ map (flip eval v . getDiffExpr) noise
+        evalBoundary t = evalExprVector state flowVarMap boundary
+      new_state <- eulerMaruyamaTraceDiag flowF noiseF evalBoundary (storeToVec flowVars state) flowVarMap
       store .= vecToStore flowVars state new_state
     Assn (Var v typ) exp -> do
       disc <- use store
@@ -81,13 +83,17 @@ runSHP traceMode inputFun shp =
       disc <- use store
       expression <- lift $ inputFun v typ config
       store . at v ?= toDyn (evalExprStore disc expression)
-    Composition n m -> runSHP traceMode inputFun n >> runSHP traceMode inputFun m
+    Composition n m -> runSHP inputFun n >> runSHP inputFun m
     While p m -> do
       disc <- use store
-      when (evalExprStore disc p) $ runSHP traceMode inputFun m >> runSHP traceMode inputFun shp
+      when (evalExprStore disc p) $ runSHP inputFun m >> runSHP inputFun shp
+    Loop prog -> do
+      maxT <- asks maxTime
+      t <- use time
+      when (t < maxT) $ runSHP inputFun prog >> runSHP inputFun shp
     Skip -> return ()
     Cond p n m -> do
       disc <- use store
       if evalExprStore disc p
-        then runSHP traceMode inputFun n
-        else runSHP traceMode inputFun m
+        then runSHP inputFun n
+        else runSHP inputFun m

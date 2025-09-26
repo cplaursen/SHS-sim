@@ -1,5 +1,6 @@
 module Euler_Maruyama where
 
+import Data.Map (Map)
 import Data.Vector.Unboxed (Vector, fromList)
 import Data.Vector.Unboxed qualified as V
 import Lens.Micro.Platform
@@ -40,6 +41,7 @@ dWiener dt k gen = V.generateM k (\_ -> normal 0 (sqrt dt) gen)
 {-# INLINE dWiener #-}
 {-# SPECIALIZE dWiener :: Double -> Int -> GenIO -> IO (Vector Double) #-}
 {-# SPECIALIZE dWiener :: Double -> Int -> GenST s -> ST s (Vector Double) #-}
+
 eulerMaruyamaStepDiag ::
   (PrimMonad m) =>
   Flow -> -- Vector Double -> Double -> Vector Double
@@ -56,28 +58,30 @@ eulerMaruyamaStepDiag flow noise state t dt gen = do
 
 eulerMaruyamaTraceDiag ::
   (PrimMonad m, Monoid w) =>
-  Tracing.Trace m w ->
   Flow ->
   Flow ->
   -- boundary - execution stops when this evaluates to false
   (Double -> Vector Double -> Bool) ->
   Vector Double -> -- current state
+  Map String Int -> -- current state
   Execution m w (Vector Double)
-eulerMaruyamaTraceDiag traceF flow noise boundary state =
+eulerMaruyamaTraceDiag flow noise boundary state flowVarMap =
   do
     t <- use time
-    Config{maxTime = maxTime, dt = dt, gen = gen} <- ask
-    eulerMaruyamaLoop maxTime t dt gen state
+    Config{maxTime = maxTime, dt = dt, gen = gen, tracingMode = tracingMode} <- ask
+    let traceF = runTrace tracingMode flowVarMap
+    eulerMaruyamaLoop maxTime t dt gen state traceF
  where
-  eulerMaruyamaLoop maxTime t dt gen st =
+  eulerMaruyamaLoop :: Double -> Double -> Double -> Gen (PrimState m) -> Vector Double -> Trace m w -> Execution m w (Vector Double)
+  eulerMaruyamaLoop maxTime t dt gen st traceF =
     if maxTime <= t || not (boundary t st)
       then do
         time .= t -- we only update time in RWS at the end
-        return state
+        return st
       else do
         nextState <- eulerMaruyamaStepDiag flow noise st t dt gen
         traceF nextState
-        eulerMaruyamaLoop maxTime (t + dt) dt gen nextState
+        eulerMaruyamaLoop maxTime (t + dt) dt gen nextState traceF
 {-# INLINE eulerMaruyamaTraceDiag #-}
 
 -- eulerMaruyamaTrace :: (PrimMonad m, Monoid w)

@@ -8,13 +8,13 @@ Variables {
 }
 
 SHP {
-    input x;
-    v := 1;
+    x := 10.0;
+    v := 1.0;
     loop {
-        if x <= 0 {
+        if x < 0.0 {
              v := -0.8 * v;
-             x := 0;
+             x := 0.0;
          }
-        {x' = v, v' = g} dt & x >= 0;
+        {x' = v, v' = g} dt + {x'=0.0, v'=0.0} dW & x >= 0.0;
     }
 }
