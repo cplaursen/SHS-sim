@@ -21,6 +21,7 @@ class SHSLexer(RegexLexer):
             (r"\b(true|false)\b", Keyword.Constant),  # Constants
             (r"\b(real|bool|int|enum)\b", Keyword.Type),  # Type Keywords
             (r"\:=", Operator),  # Assignment operator
+            (r"(/\\|\\/)", Operator),  # Logic
             (r"[-+*/=<>&]", Operator),  # Other operators
             (r"\b[0-9]+(\.[0-9]+)?\b", Number),  # Numbers
             (r'"[^"]*"', String),  # Strings

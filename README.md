@@ -1,12 +1,9 @@
 # SHS-sim
-Simulator for stochastic hybrid programs
+Simulator for stochastic hybrid programs.
+To build and run, install the haskell tool [stack](https://docs.haskellstack.org/en/stable/), and run
+```bash
+stack install
+```
+This will pull all dependencies and build everything - though it may take a while.
 
-The constructs are:
-
-- assignment x := theta
-- random_assignment x := {lo,b}
-- if statement - if b then p [else q]
-- while loop - while b p
-- SDE dx = b dt + sigma dW & H
-- random choice a ++ b
-- composition a ; b
+See usage in my thesis. The executable installed is `stochastic_hybrid_sim`
